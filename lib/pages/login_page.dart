@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'register_page.dart';
 import '../main.dart';
+import '../providers/user_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +49,10 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: Colors.white54,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -65,7 +71,10 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white54,
+                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscure ? Icons.visibility : Icons.visibility_off,
@@ -85,12 +94,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RootShell()),
-                      );
-                    },
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
@@ -103,7 +107,19 @@ class _LoginPageState extends State<LoginPage> {
                         fontSize: 18,
                       ),
                     ),
-                    child: const Text('Log In'),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.black,
+                                ),
+                              ),
+                            )
+                            : const Text('Log In'),
                   ),
                 ),
 
@@ -115,7 +131,10 @@ class _LoginPageState extends State<LoginPage> {
                     Expanded(child: Divider(color: Colors.white24)),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text('or', style: TextStyle(color: Colors.white54)),
+                      child: Text(
+                        'or',
+                        style: TextStyle(color: Colors.white54),
+                      ),
                     ),
                     Expanded(child: Divider(color: Colors.white24)),
                   ],
@@ -153,6 +172,35 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_email.text.isEmpty || _password.text.isEmpty) {
+      _showError('Please enter email and password');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final success = await userProvider.login(_email.text, _password.text);
+
+    setState(() => _isLoading = false);
+
+    if (success && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RootShell()),
+      );
+    } else if (mounted) {
+      _showError(userProvider.error ?? 'Login failed. Please try again.');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
