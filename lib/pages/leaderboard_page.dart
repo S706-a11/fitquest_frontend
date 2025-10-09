@@ -8,7 +8,8 @@ class LeaderboardPage extends StatelessWidget {
     final ranks = List.generate(8, (i) => ('James', 10 - i, (10000000 - i * 1000)));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('LEADERBOARD')),
+      appBar: AppBar(title: const Text('LEADERBOARD',style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2,),
+        ),),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: ranks.length,

@@ -55,7 +55,8 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
     final xp = widget.xpOverride ?? 100;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('QUEST TRACKER')),
+      appBar: AppBar(title: const Text('QUEST TRACKER',style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2,),
+        ),),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

@@ -16,7 +16,8 @@ class QuestsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: const SizedBox(),
-        title: const Text('QUESTS'),
+        title: const Text('QUESTS',style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2,),
+        ),
       ),
       body: ListView.separated(
         padding: const EdgeInsets.all(16),

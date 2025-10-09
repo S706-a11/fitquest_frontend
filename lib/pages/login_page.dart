@@ -124,14 +124,14 @@ class _LoginPageState extends State<LoginPage> {
                 const SizedBox(height: 25),
 
                 // Social login buttons (mock)
-                // Row(
-                //   mainAxisAlignment: MainAxisAlignment.center,
-                //   children: [
-                //     _socialButton(Icons.g_mobiledata, 'Google'),
-                //     const SizedBox(width: 16),
-                //     _socialButton(Icons.apple, 'Apple'),
-                //   ],
-                // ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _socialButton(Icons.g_mobiledata, 'Google'),
+                    const SizedBox(width: 16),
+                    _socialButton(Icons.apple, 'Apple'),
+                  ],
+                ),
 
                 const SizedBox(height: 35),
 
