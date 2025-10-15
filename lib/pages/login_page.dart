@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'register_page.dart';
-import '../main.dart';
+import 'onboarding/onboarding_flow.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,6 +13,13 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +44,10 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 40),
 
-                // Email field
+                // Email
                 TextField(
                   controller: _email,
+                  keyboardType: TextInputType.emailAddress,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: 'Email',
@@ -55,7 +63,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 20),
 
-                // Password field
+                // Password
                 TextField(
                   controller: _password,
                   obscureText: _obscure,
@@ -67,10 +75,7 @@ class _LoginPageState extends State<LoginPage> {
                     fillColor: const Color(0xFF1A1A1D),
                     prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscure ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.white54,
-                      ),
+                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     border: OutlineInputBorder(
@@ -79,41 +84,37 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 40),
 
-                // Login Button
+                const SizedBox(height: 32),
+
+                // Log In (mock) → Onboarding
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (_) => const RootShell()),
+                        MaterialPageRoute(builder: (_) => const OnboardingFlow()),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                     ),
                     child: const Text('Log In'),
                   ),
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 24),
 
-                // Or divider
+                // Divider
                 Row(
-                  children: [
+                  children: const [
                     Expanded(child: Divider(color: Colors.white24)),
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
                       child: Text('or', style: TextStyle(color: Colors.white54)),
                     ),
@@ -121,21 +122,21 @@ class _LoginPageState extends State<LoginPage> {
                   ],
                 ),
 
-                const SizedBox(height: 25),
+                const SizedBox(height: 20),
 
-                // Social login buttons (mock)
+                // Social (mock only)
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _socialButton(Icons.g_mobiledata, 'Google'),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     _socialButton(Icons.apple, 'Apple'),
                   ],
                 ),
 
-                const SizedBox(height: 35),
+                const SizedBox(height: 28),
 
-                // Sign up link
+                // Go to Sign Up
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -156,17 +157,17 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _socialButton(IconData icon, String label) {
+  static Widget _socialButton(IconData icon, String label) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.white24),
         borderRadius: BorderRadius.circular(12),
         color: const Color(0xFF1A1A1D),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 18),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white, size: 24),
+          Icon(icon, color: Colors.white, size: 22),
           const SizedBox(width: 6),
           Text(label, style: const TextStyle(color: Colors.white)),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'login_page.dart';
+import 'onboarding/onboarding_flow.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -89,17 +90,14 @@ class _RegisterPageState extends State<RegisterPage> {
             ),
             const SizedBox(height: 16),
 
-            // Weight & Height 
+            // Weight & Height
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _weight,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: false, decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                     style: const TextStyle(color: Colors.white),
                     decoration: _numberInputStyle(
                       hint: 'Weight',
@@ -112,11 +110,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 Expanded(
                   child: TextField(
                     controller: _height,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: false, decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
                     style: const TextStyle(color: Colors.white),
                     decoration: _numberInputStyle(
                       hint: 'Height',
@@ -127,9 +122,10 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
               ],
             ),
-            const SizedBox(height: 32),
 
-            // Submit
+            const SizedBox(height: 28),
+
+            // Sign Up (mock) → Onboarding
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -138,18 +134,14 @@ class _RegisterPageState extends State<RegisterPage> {
                   backgroundColor: const Color(0xFF00FF99),
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  textStyle: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 18,
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                 ),
                 child: const Text('Sign Up'),
               ),
             ),
-            const SizedBox(height: 20),
+
+            const SizedBox(height: 18),
 
             // Back to login
             GestureDetector(
@@ -194,15 +186,15 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // replace this with our sign-up logic (API/Firebase)
-    _toast('Account created! ($name, $email, ${weight}kg, ${height}cm)');
-    Navigator.pop(context); // back to login
+    // Frontend only → go straight to onboarding
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+    );
   }
 
   void _toast(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   InputDecoration _inputStyle(String hint, IconData icon) {
@@ -224,6 +216,7 @@ class _RegisterPageState extends State<RegisterPage> {
         borderRadius: BorderRadius.circular(14),
         borderSide: const BorderSide(color: Color(0xFF00FF99), width: 1.3),
       ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 
