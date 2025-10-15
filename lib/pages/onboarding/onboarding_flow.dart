@@ -57,7 +57,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
 
   void _finish() {
     final p = Profile(
-      displayName: _name.text.trim().isEmpty ? 'Adventurer' : _name.text.trim(),
+      displayName: _name.text.trim().isEmpty ? 'Test' : _name.text.trim(),
       avatar: _avatar,
       weightKg: double.tryParse(_weight.text.trim()) ?? 0,
       heightCm: double.tryParse(_height.text.trim()) ?? 0,
@@ -200,7 +200,7 @@ class _ProfileStep extends StatelessWidget {
         const SizedBox(height: 20),
         const Text('Display name', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
-        TextField(decoration: const InputDecoration(hintText: 'e.g. James'), controller: name),
+        TextField(decoration: const InputDecoration(hintText: 'e.g. Name'), controller: name),
       ],
     );
   }
@@ -242,7 +242,7 @@ class _LevelStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const levels = ['Beginner', 'Intermediate', 'Advanced'];
+    const levels = ['Beginner', 'Advanced', "Godmode"];
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
