@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import '../services/user_service.dart';
+import '../services/exercise_service.dart';
 
 /// Debug page to test API connectivity
 /// Navigate to this page to test if your API is working correctly
@@ -77,28 +78,30 @@ class _ApiTestPageState extends State<ApiTestPage> {
             _buildTestButton(
               'Get All Users',
               Icons.people,
-              () => _testEndpoint('GET /api/users', ApiService.getUsers),
+              () => _testEndpoint('GET /api/users', UserService.getUsers),
             ),
             _buildTestButton(
               'Get Exercise Types',
               Icons.fitness_center,
               () => _testEndpoint(
                 'GET /api/exercise-types',
-                ApiService.getExerciseTypes,
+                ExerciseService.getExerciseTypes,
               ),
             ),
             _buildTestButton(
               'Get Exercises',
               Icons.directions_run,
-              () =>
-                  _testEndpoint('GET /api/exercises', ApiService.getExercises),
+              () => _testEndpoint(
+                'GET /api/exercises',
+                ExerciseService.getExercises,
+              ),
             ),
             _buildTestButton(
               'Create Test User',
               Icons.person_add,
               () => _testEndpoint(
                 'POST /api/users',
-                () => ApiService.createUser(
+                () => UserService.createUser(
                   name: 'Test User ${DateTime.now().millisecondsSinceEpoch}',
                   email:
                       'test${DateTime.now().millisecondsSinceEpoch}@example.com',

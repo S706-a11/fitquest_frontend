@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user.dart';
-import 'api_service.dart';
+import 'user_service.dart';
 
 class AuthService {
   static const String _userIdKey = 'user_id';
@@ -11,7 +11,7 @@ class AuthService {
   static Future<User?> login(String email, String password) async {
     try {
       // Get all users and find by email
-      final response = await ApiService.getUsers();
+      final response = await UserService.getUsers();
 
       // The API returns a list of users
       final List<dynamic> users =
@@ -50,7 +50,7 @@ class AuthService {
     String password,
   ) async {
     try {
-      final response = await ApiService.createUser(
+      final response = await UserService.createUser(
         name: name,
         email: email,
         password: password,
@@ -82,7 +82,7 @@ class AuthService {
 
     try {
       // Fetch fresh user data from API
-      final response = await ApiService.getUserById(userId);
+      final response = await UserService.getUserById(userId);
       return User.fromJson(response);
     } catch (e) {
       print('Error fetching user: $e');
