@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
+import '../services/user_service.dart';
 
 class UserProvider with ChangeNotifier {
   User? _user;
@@ -106,7 +106,7 @@ class UserProvider with ChangeNotifier {
     if (_user == null) return;
 
     try {
-      final response = await ApiService.getUserById(_user!.id);
+      final response = await UserService.getUserById(_user!.id);
       _user = User.fromJson(response);
       notifyListeners();
     } catch (e) {
@@ -129,7 +129,7 @@ class UserProvider with ChangeNotifier {
         newLevel++;
       }
 
-      await ApiService.updateUser(
+      await UserService.updateUser(
         userId: _user!.id,
         level: newLevel,
         xp: remainingXp,
