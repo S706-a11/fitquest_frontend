@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'profile_settings_page.dart';
+import 'api_test_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -25,13 +26,37 @@ class SettingsPage extends StatelessWidget {
         children: [
           _Tile(
             label: 'Profile',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ProfileSettingsPage()),
-            ),
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ProfileSettingsPage(),
+                  ),
+                ),
           ),
           const _Tile(label: 'Notification'),
           const _Tile(label: 'Theme', trailing: Text('Dark')),
+          const Divider(height: 32),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'Developer Tools',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          _Tile(
+            label: 'API Connection Test',
+            trailing: const Icon(Icons.bug_report, color: Colors.orange),
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ApiTestPage()),
+                ),
+          ),
         ],
       ),
     );
