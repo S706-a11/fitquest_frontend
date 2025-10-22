@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../widgets/xp_bar.dart';
 import '../providers/user_provider.dart';
+import 'quest_tracker_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -75,6 +76,40 @@ class HomePage extends StatelessWidget {
 
           const SizedBox(height: 24),
           const Text(
+            'Quick Start Workout',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _exerciseCard(context, '🏃', 'Running', Colors.blue, 91),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _exerciseCard(
+                  context,
+                  '🚴',
+                  'Cycling',
+                  Colors.orange,
+                  92,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _exerciseCard(
+                  context,
+                  '🏊',
+                  'Swimming',
+                  Colors.teal,
+                  93,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          const Text(
             'Daily Quest',
             style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
           ),
@@ -111,6 +146,74 @@ class HomePage extends StatelessWidget {
               style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exerciseCard(
+    BuildContext context,
+    String emoji,
+    String name,
+    Color color,
+    int exerciseTypeId,
+  ) {
+    // Map exercise type ID to exercise type string
+    String exerciseType;
+    switch (exerciseTypeId) {
+      case 91:
+        exerciseType = 'running';
+        break;
+      case 92:
+        exerciseType = 'cycling';
+        break;
+      case 93:
+        exerciseType = 'swimming';
+        break;
+      default:
+        exerciseType = 'general';
+    }
+
+    return Card(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => QuestTrackerPage(
+                    exerciseType: exerciseType,
+                    titleOverride: '$name Workout',
+                  ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(emoji, style: const TextStyle(fontSize: 32)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
       ),
     );

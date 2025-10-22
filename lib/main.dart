@@ -72,7 +72,7 @@ class _RootShellState extends State<RootShell> {
   final pages = const [
     HomePage(),
     QuestsPage(),
-    QuestTrackerPage(),
+    QuestTrackerPage(exerciseType: 'general'),
     LeaderboardPage(),
     SettingsPage(),
   ];
