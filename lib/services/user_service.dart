@@ -46,20 +46,37 @@ class UserService {
     required String password,
     required String displayName,
   }) async {
+    print('UserService: POST $baseUrl/users/register');
+    print(
+      'UserService: Register data - email: $email, displayName: $displayName',
+    );
+
+    final requestBody = {
+      'email': email,
+      'password': password,
+      'displayName': displayName,
+    };
+
+    print('UserService: Request body: $requestBody');
+
     final response = await http.post(
       Uri.parse('$baseUrl/users/register'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-        'displayName': displayName,
-      }),
+      body: jsonEncode(requestBody),
     );
 
+    print('UserService: Register response status: ${response.statusCode}');
+    print('UserService: Register response body: ${response.body}');
+
     if (response.statusCode == 200 || response.statusCode == 201) {
-      return User.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      final userData = jsonDecode(response.body) as Map<String, dynamic>;
+      print('UserService: Successfully parsed user data: $userData');
+      return User.fromJson(userData);
     } else {
-      throw Exception('Failed to register user: ${response.body}');
+      final errorMsg =
+          'Failed to register user: Status ${response.statusCode}, Body: ${response.body}';
+      print('UserService: Registration failed - $errorMsg');
+      throw Exception(errorMsg);
     }
   }
 
