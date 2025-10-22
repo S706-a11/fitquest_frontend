@@ -177,9 +177,19 @@ class QuestService {
   static Future<Map<String, dynamic>> toggleQuestStatus({
     required String userId,
     required int questId,
+    bool? completed,
   }) async {
-    final response = await http.patch(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId/toggle'),
+    // If completed is not provided, we'll use the toggle endpoint
+    if (completed == null) {
+      final response = await http.patch(
+        Uri.parse('$baseUrl/users/$userId/quests/$questId/toggle'),
+      );
+      return _handleResponse(response);
+    }
+    
+    // Otherwise use the complete endpoint with the completed parameter
+    final response = await http.put(
+      Uri.parse('$baseUrl/quests/$questId/complete?completed=$completed'),
     );
     return _handleResponse(response);
   }
@@ -190,7 +200,7 @@ class QuestService {
     required int questId,
   }) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+      Uri.parse('$baseUrl/quests/$questId'),
     );
     return _handleResponse(response);
   }
@@ -213,7 +223,7 @@ class QuestService {
     if (dueDate != null) body['dueDate'] = dueDate;
 
     final response = await http.put(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+      Uri.parse('$baseUrl/quests/$questId'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
@@ -226,7 +236,7 @@ class QuestService {
     required int questId,
   }) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+      Uri.parse('$baseUrl/quests/$questId'),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to delete quest: ${response.statusCode}');
@@ -239,7 +249,7 @@ class QuestService {
     required int questId,
   }) async {
     final response = await http.get(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises'),
+      Uri.parse('$baseUrl/quests/$questId/exercises'),
     );
     if (response.statusCode == 200) {
       return json.decode(response.body) as List<dynamic>;
@@ -253,8 +263,13 @@ class QuestService {
     required int questId,
     required int exerciseId,
   }) async {
+    // Use the simplified endpoint with exerciseIds array
     final response = await http.post(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises/$exerciseId'),
+      Uri.parse('$baseUrl/quests/$questId/exercises'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'exerciseIds': [exerciseId],
+      }),
     );
     return _handleResponse(response);
   }
@@ -266,7 +281,7 @@ class QuestService {
     required int exerciseId,
   }) async {
     final response = await http.delete(
-      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises/$exerciseId'),
+      Uri.parse('$baseUrl/quests/$questId/exercises/$exerciseId'),
     );
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to remove exercise: ${response.statusCode}');
