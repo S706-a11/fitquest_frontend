@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../widgets/xp_bar.dart';
+import '../providers/user_provider.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = context.watch<UserProvider>();
+    final user = userProvider.user;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.background,
@@ -31,38 +36,48 @@ class HomePage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   // Profile Picture
-                  const CircleAvatar(
+                  CircleAvatar(
                     radius: 40,
                     backgroundImage:
-                        NetworkImage('https://i.pravatar.cc/150?img=1'),
+                        user?.avatarUrl.isNotEmpty == true
+                            ? NetworkImage(user!.avatarUrl)
+                            : const NetworkImage(
+                              'https://api.dicebear.com/9.x/adventurer/svg?seed=Default',
+                            ),
                   ),
                   const SizedBox(height: 12),
                   // Name
-                  const Text(
-                    'James',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                        color: Colors.white),
+                  Text(
+                    user?.displayName ?? 'Adventurer',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   // Level text
-                  const Text(
-                    'Lv-1',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                  Text(
+                    'Lv ${user?.level ?? 1}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   const SizedBox(height: 8),
                   // XP Bar under profile
-                  const XPBar(xp: 50, level: 1, nextLevelXp: 100),
+                  XPBar(
+                    xp: user?.xp ?? 0,
+                    level: user?.level ?? 1,
+                    nextLevelXp: (user?.level ?? 1) * 100,
+                  ),
                 ],
               ),
             ),
           ),
 
           const SizedBox(height: 24),
-          const Text('Daily Quest',
-              style: TextStyle(
-                  fontWeight: FontWeight.w700, color: Colors.white)),
+          const Text(
+            'Daily Quest',
+            style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+          ),
           const SizedBox(height: 8),
           _progressTile('Daily Quest', .5),
           _progressTile('Newbie Quest', .8),

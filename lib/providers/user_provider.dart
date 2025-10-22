@@ -106,12 +106,25 @@ class UserProvider with ChangeNotifier {
     if (_user == null) return;
 
     try {
-      final response = await UserService.getUserById(_user!.id);
-      _user = User.fromJson(response as Map<String, dynamic>);
+      final updatedUser = await UserService.getUserById(_user!.id);
+      _user = updatedUser;
       notifyListeners();
     } catch (e) {
       print('Error refreshing user: $e');
     }
+  }
+
+  // Set user (for profile updates)
+  void setUser(User user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  // Clear user (for logout/delete)
+  void clearUser() {
+    _user = null;
+    _error = null;
+    notifyListeners();
   }
 
   // Update XP

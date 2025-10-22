@@ -10,35 +10,21 @@ class AuthService {
   // Login - finds user by email or creates demo login
   static Future<User?> login(String email, String password) async {
     try {
-      // Get all users and find by email
-      final response = await UserService.getUsers();
+      print('AuthService: Starting login for $email');
+      // Use the UserService login method which handles authentication
+      final user = await UserService.login(email, password);
+      print('AuthService: Login successful for user ${user.id}');
 
-      // The API returns a list of users
-      final List<dynamic> users =
-          (response is List)
-              ? response as List<dynamic>
-              : (response as List<dynamic>);
+      await _saveUserLocally(user);
+      print('AuthService: User data saved locally');
 
-      // Find user by email (case insensitive)
-      dynamic userJson;
-      try {
-        userJson = users.firstWhere(
-          (u) => u['email'].toString().toLowerCase() == email.toLowerCase(),
-        );
-      } catch (e) {
-        userJson = null;
-      }
+      // Verify save
+      final prefs = await SharedPreferences.getInstance();
+      print('AuthService: Saved userId: ${prefs.getString(_userIdKey)}');
 
-      if (userJson != null) {
-        final user = User.fromJson(userJson);
-        await _saveUserLocally(user);
-        return user;
-      }
-
-      // If user not found, return null
-      return null;
+      return user;
     } catch (e) {
-      print('Login error: $e');
+      print('AuthService: Login error: $e');
       return null;
     }
   }
@@ -50,15 +36,14 @@ class AuthService {
     String password,
   ) async {
     try {
-      // final response = await UserService.createUser(
-      //   name: name,
-      //   email: email,
-      //   password: password,
-      // );
+      final user = await UserService.register(
+        email: email,
+        password: password,
+        displayName: name,
+      );
 
-      // final user = User.fromJson(response);
-      // await _saveUserLocally(user);
-      // return user;
+      await _saveUserLocally(user);
+      return user;
     } catch (e) {
       print('Registration error: $e');
       rethrow; // Re-throw to let the UI handle specific error messages
@@ -67,28 +52,46 @@ class AuthService {
 
   // Save user data locally
   static Future<void> _saveUserLocally(User user) async {
+    print(
+      'AuthService: Saving user locally - ID: ${user.id}, Name: ${user.displayName}, Email: ${user.email}',
+    );
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userIdKey, user.id);
-    await prefs.setString(_userNameKey, user.displayName);
-    await prefs.setString(_userEmailKey, user.email);
+
+    final success1 = await prefs.setString(_userIdKey, user.id);
+    final success2 = await prefs.setString(_userNameKey, user.displayName);
+    final success3 = await prefs.setString(_userEmailKey, user.email);
+
+    print(
+      'AuthService: Save results - ID: $success1, Name: $success2, Email: $success3',
+    );
   }
 
   // Get current user from local storage
   static Future<User?> getCurrentUser() async {
+    print('AuthService: Getting current user from local storage');
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString(_userIdKey);
 
-    if (userId == null) return null;
+    print('AuthService: Retrieved userId: $userId');
+
+    if (userId == null) {
+      print('AuthService: No userId found in local storage');
+      return null;
+    }
 
     try {
+      print('AuthService: Fetching user data from API for userId: $userId');
       // Fetch fresh user data from API
-      final response = await UserService.getUserById(userId);
-      return User.fromJson(response as Map<String, dynamic>);
+      final user = await UserService.getUserById(userId);
+      print('AuthService: Successfully fetched user from API');
+      return user;
     } catch (e) {
-      print('Error fetching user: $e');
+      print('AuthService: Error fetching user from API: $e');
       // Fallback to cached data
       final name = prefs.getString(_userNameKey);
       final email = prefs.getString(_userEmailKey);
+
+      print('AuthService: Using cached data - Name: $name, Email: $email');
 
       if (name != null && email != null) {
         return User(
@@ -104,6 +107,7 @@ class AuthService {
           createdAt: DateTime.now(),
         );
       }
+      print('AuthService: No cached data available');
       return null;
     }
   }

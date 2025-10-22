@@ -25,32 +25,31 @@ class User {
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    return switch (json) {
-      {
-        'id': String tempId,
-        'email': String email,
-        'displayName': String displayName,
-        'avatarUrl': String avatarUrl,
-        'level': int level,
-        'xp': int xp,
-        'streakCount': int streakCount,
-        'weightKg': double weightKg,
-        'heightCm': double heightCm,
-        'createdAt': String createdAt,
-      } =>
-        User(
-          id: tempId,
-          email: email,
-          displayName: displayName,
-          avatarUrl: avatarUrl,
-          level: level,
-          xp: xp,
-          streakCount: streakCount,
-          weightKg: weightKg,
-          heightCm: heightCm,
-          createdAt: DateTime.parse(createdAt),
-        ),
-      _ => throw const FormatException('Failed to load User.'),
-    };
+    print('User.fromJson: Parsing user data: $json');
+
+    try {
+      // Handle ID as either String or int
+      final id =
+          json['id'] is int ? json['id'].toString() : json['id'] as String;
+
+      return User(
+        id: id,
+        email: json['email'] as String? ?? '',
+        displayName: json['displayName'] as String? ?? 'User',
+        avatarUrl: json['avatarUrl'] as String? ?? '',
+        level: json['level'] as int? ?? 1,
+        xp: json['xp'] as int? ?? 0,
+        streakCount: json['streakCount'] as int? ?? 0,
+        weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0.0,
+        heightCm: (json['heightCm'] as num?)?.toDouble() ?? 0.0,
+        createdAt:
+            json['createdAt'] != null
+                ? DateTime.parse(json['createdAt'] as String)
+                : DateTime.now(),
+      );
+    } catch (e) {
+      print('User.fromJson: Error parsing user: $e');
+      rethrow;
+    }
   }
 }
