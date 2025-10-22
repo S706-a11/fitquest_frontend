@@ -17,13 +17,44 @@ class FitQuestApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => UserProvider(),
+      create: (_) => UserProvider()..loadUser(),
       child: MaterialApp(
         title: 'FitQuest',
         debugShowCheckedModeBanner: false,
         theme: buildDarkTheme(),
-        home: const LoginPage(), //login first
+        home: const AuthWrapper(),
       ),
+    );
+  }
+}
+
+/// Wrapper to check authentication status on app start
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        // Show loading while checking auth status
+        if (userProvider.isLoading) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF0D0D0F),
+            body: Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF00FF99)),
+              ),
+            ),
+          );
+        }
+
+        // Show home if logged in, otherwise show login
+        if (userProvider.isLoggedIn) {
+          return const RootShell();
+        } else {
+          return const LoginPage();
+        }
+      },
     );
   }
 }

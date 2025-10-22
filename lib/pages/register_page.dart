@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'login_page.dart';
-import 'onboarding/onboarding_flow.dart';
+import 'home_page.dart';
+import '../providers/user_provider.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -20,6 +22,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   bool _obscure1 = true;
   bool _obscure2 = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -96,8 +99,12 @@ class _RegisterPageState extends State<RegisterPage> {
                 Expanded(
                   child: TextField(
                     controller: _weight,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
                     style: const TextStyle(color: Colors.white),
                     decoration: _numberInputStyle(
                       hint: 'Weight',
@@ -110,8 +117,12 @@ class _RegisterPageState extends State<RegisterPage> {
                 Expanded(
                   child: TextField(
                     controller: _height,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                    ],
                     style: const TextStyle(color: Colors.white),
                     decoration: _numberInputStyle(
                       hint: 'Height',
@@ -129,15 +140,32 @@ class _RegisterPageState extends State<RegisterPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _onSubmit,
+                onPressed: _isLoading ? null : _onSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF00FF99),
                   foregroundColor: Colors.black,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
                 ),
-                child: const Text('Sign Up'),
+                child:
+                    _isLoading
+                        ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
+                            ),
+                          ),
+                        )
+                        : const Text('Sign Up'),
               ),
             ),
 
@@ -145,10 +173,11 @@ class _RegisterPageState extends State<RegisterPage> {
 
             // Back to login
             GestureDetector(
-              onTap: () => Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginPage()),
-              ),
+              onTap:
+                  () => Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                  ),
               child: const Text(
                 "Already have an account? Log In",
                 style: TextStyle(color: Colors.white70),
@@ -162,7 +191,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   // ----- Helpers -----
 
-  void _onSubmit() {
+  Future<void> _onSubmit() async {
     final name = _name.text.trim();
     final email = _email.text.trim();
     final pass = _password.text;
@@ -170,27 +199,87 @@ class _RegisterPageState extends State<RegisterPage> {
     final weightStr = _weight.text.trim();
     final heightStr = _height.text.trim();
 
-    if (name.isEmpty || email.isEmpty || pass.isEmpty || confirm.isEmpty || weightStr.isEmpty || heightStr.isEmpty) {
-      _toast('Please fill all fields');
+    // Validation
+    if (name.isEmpty || email.isEmpty || pass.isEmpty || confirm.isEmpty) {
+      _toast('Please fill all required fields');
       return;
     }
+
+    if (!email.contains('@')) {
+      _toast('Please enter a valid email address');
+      return;
+    }
+
+    if (pass.length < 6) {
+      _toast('Password must be at least 6 characters');
+      return;
+    }
+
     if (pass != confirm) {
       _toast('Passwords do not match');
       return;
     }
 
-    final weight = double.tryParse(weightStr) ?? -1;
-    final height = double.tryParse(heightStr) ?? -1;
-    if (weight <= 0 || height <= 0) {
-      _toast('Enter valid weight and height');
-      return;
+    // Weight and height are optional for registration
+    double? weight;
+    double? height;
+
+    if (weightStr.isNotEmpty) {
+      weight = double.tryParse(weightStr);
+      if (weight == null || weight <= 0) {
+        _toast('Enter valid weight');
+        return;
+      }
     }
 
-    // Frontend only → go straight to onboarding
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const OnboardingFlow()),
-    );
+    if (heightStr.isNotEmpty) {
+      height = double.tryParse(heightStr);
+      if (height == null || height <= 0) {
+        _toast('Enter valid height');
+        return;
+      }
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = context.read<UserProvider>();
+      final success = await userProvider.register(name, email, pass);
+
+      if (!mounted) return;
+
+      if (success) {
+        // Update weight and height if provided
+        if ((weight != null && weight > 0) || (height != null && height > 0)) {
+          try {
+            await userProvider.refreshUser();
+            // You could also call updateUser here if needed
+          } catch (e) {
+            print('Note: Could not update weight/height: $e');
+          }
+        }
+
+        // Navigate to home page on successful registration
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomePage()),
+        );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account created successfully!')),
+        );
+      } else {
+        // Show error from provider
+        _toast(userProvider.error ?? 'Registration failed');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Registration failed: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _toast(String msg) {
@@ -227,7 +316,10 @@ class _RegisterPageState extends State<RegisterPage> {
   }) {
     return _inputStyle(hint, Icons.lock_outline).copyWith(
       suffixIcon: IconButton(
-        icon: Icon(obscure ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+        icon: Icon(
+          obscure ? Icons.visibility : Icons.visibility_off,
+          color: Colors.white54,
+        ),
         onPressed: onToggle,
       ),
     );

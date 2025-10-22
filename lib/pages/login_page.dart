@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'register_page.dart';
-import 'onboarding/onboarding_flow.dart';
-import '../services/user_service.dart';
-//import User model
-import '../models/user.dart';
+import 'home_page.dart';
+import '../providers/user_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -16,6 +15,7 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -26,28 +26,48 @@ class _LoginPageState extends State<LoginPage> {
 
   //handle Login
   Future<void> _handleLogin() async {
-    String email = _email.text.trim();
-    String password = _password.text;
+    final email = _email.text.trim();
+    final password = _password.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter email and password')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
-      User? user = await UserService.login(email, password);
-      if (user != null) {
-        // Navigate to onboarding flow on successful login
+      final userProvider = context.read<UserProvider>();
+      final success = await userProvider.login(email, password);
+
+      if (!mounted) return;
+
+      if (success) {
+        // Navigate to home page on successful login
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+          MaterialPageRoute(builder: (_) => const HomePage()),
         );
       } else {
-        // Show error if login fails
+        // Show error from provider
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid email or password')),
+          SnackBar(
+            content: Text(userProvider.error ?? 'Invalid email or password'),
+          ),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       // Handle any errors during login
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ).showSnackBar(SnackBar(content: Text('Login failed: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -130,7 +150,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _handleLogin,
+                    onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
@@ -143,7 +163,19 @@ class _LoginPageState extends State<LoginPage> {
                         fontSize: 18,
                       ),
                     ),
-                    child: const Text('Log In'),
+                    child:
+                        _isLoading
+                            ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.black,
+                                ),
+                              ),
+                            )
+                            : const Text('Log In'),
                   ),
                 ),
 

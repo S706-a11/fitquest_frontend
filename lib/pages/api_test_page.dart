@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../services/user_service.dart';
 import '../services/exercise_service.dart';
 
 /// Debug page to test API connectivity
