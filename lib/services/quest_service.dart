@@ -186,7 +186,7 @@ class QuestService {
       );
       return _handleResponse(response);
     }
-    
+
     // Otherwise use the complete endpoint with the completed parameter
     final response = await http.put(
       Uri.parse('$baseUrl/quests/$questId/complete?completed=$completed'),
@@ -199,9 +199,7 @@ class QuestService {
     required String userId,
     required int questId,
   }) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/quests/$questId'),
-    );
+    final response = await http.get(Uri.parse('$baseUrl/quests/$questId'));
     return _handleResponse(response);
   }
 
@@ -235,9 +233,7 @@ class QuestService {
     required String userId,
     required int questId,
   }) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/quests/$questId'),
-    );
+    final response = await http.delete(Uri.parse('$baseUrl/quests/$questId'));
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Failed to delete quest: ${response.statusCode}');
     }

@@ -5,6 +5,7 @@ import '../services/quest_service.dart';
 import '../models/quest.dart';
 import 'quest_detail_page.dart';
 import 'available_quests_page.dart';
+import 'quest_tracker_page.dart';
 
 class QuestsPage extends StatefulWidget {
   const QuestsPage({super.key});
@@ -164,20 +165,181 @@ class _QuestsPageState extends State<QuestsPage>
                   _buildQuestList(_completedQuests, isActive: false),
                 ],
               ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AvailableQuestsPage()),
-          );
-          if (result == true) {
-            _loadQuests();
-          }
-        },
-        backgroundColor: const Color(0xFF00FF99),
-        child: const Icon(Icons.add, color: Colors.black),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'start_workout',
+            onPressed: () => _showWorkoutOptions(context),
+            backgroundColor: Colors.blue,
+            child: const Icon(Icons.directions_run, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'browse_quests',
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AvailableQuestsPage()),
+              );
+              if (result == true) {
+                _loadQuests();
+              }
+            },
+            backgroundColor: const Color(0xFF00FF99),
+            child: const Icon(Icons.add, color: Colors.black),
+          ),
+        ],
       ),
     );
+  }
+
+  void _showWorkoutOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (context) => Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Start Distance Workout',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                _workoutOption(
+                  context,
+                  '🏃 Running',
+                  'Track your run with GPS',
+                  Colors.blue,
+                  91,
+                  'Running',
+                ),
+                const SizedBox(height: 12),
+                _workoutOption(
+                  context,
+                  '🚴 Cycling',
+                  'Track your ride with GPS',
+                  Colors.orange,
+                  92,
+                  'Cycling',
+                ),
+                const SizedBox(height: 12),
+                _workoutOption(
+                  context,
+                  '🏊 Swimming',
+                  'Track your swim distance',
+                  Colors.teal,
+                  93,
+                  'Swimming',
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _workoutOption(
+    BuildContext context,
+    String title,
+    String subtitle,
+    Color color,
+    int exerciseTypeId,
+    String exerciseTypeName,
+  ) {
+    // Map exercise type ID to exercise type string
+    String exerciseType;
+    switch (exerciseTypeId) {
+      case 91:
+        exerciseType = 'running';
+        break;
+      case 92:
+        exerciseType = 'cycling';
+        break;
+      case 93:
+        exerciseType = 'swimming';
+        break;
+      default:
+        exerciseType = 'general';
+    }
+
+    return Card(
+      child: InkWell(
+        onTap: () {
+          Navigator.pop(context); // Close bottom sheet
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) => QuestTrackerPage(
+                    exerciseType: exerciseType,
+                    titleOverride: '$exerciseTypeName Workout',
+                  ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  _getIconForExercise(exerciseTypeId),
+                  color: color,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[600]),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _getIconForExercise(int exerciseTypeId) {
+    switch (exerciseTypeId) {
+      case 91:
+        return Icons.directions_run;
+      case 92:
+        return Icons.directions_bike;
+      case 93:
+        return Icons.pool;
+      default:
+        return Icons.fitness_center;
+    }
   }
 
   Widget _buildQuestList(List<Quest> quests, {required bool isActive}) {
