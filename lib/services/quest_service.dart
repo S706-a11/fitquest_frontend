@@ -71,6 +71,46 @@ class QuestService {
     );
   }
 
+  /// Browse quest templates with advanced filtering
+  static Future<Map<String, dynamic>> browseQuestTemplates({
+    String? search,
+    List<String>? categories,
+    List<String>? difficulties,
+    int? minLevel,
+    int? maxLevel,
+    String? sortBy,
+    bool? ascending,
+    bool? activeOnly,
+  }) async {
+    final queryParams = <String, dynamic>{};
+
+    if (search != null && search.isNotEmpty) queryParams['search'] = search;
+    if (categories != null && categories.isNotEmpty) {
+      queryParams['categories'] = categories.join(',');
+    }
+    if (difficulties != null && difficulties.isNotEmpty) {
+      queryParams['difficulties'] = difficulties.join(',');
+    }
+    if (minLevel != null) queryParams['minLevel'] = minLevel.toString();
+    if (maxLevel != null) queryParams['maxLevel'] = maxLevel.toString();
+    if (sortBy != null) queryParams['sortBy'] = sortBy;
+    if (ascending != null) queryParams['ascending'] = ascending.toString();
+    if (activeOnly != null) queryParams['activeOnly'] = activeOnly.toString();
+
+    final uri = Uri.parse(
+      '$baseUrl/quest-templates',
+    ).replace(queryParameters: queryParams.isNotEmpty ? queryParams : null);
+
+    final response = await http.get(uri);
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception(
+      'Failed to browse quest templates: ${response.statusCode} - ${response.body}',
+    );
+  }
+
   /// Claim a quest from a template
   static Future<Map<String, dynamic>> claimQuest({
     required String userId,
