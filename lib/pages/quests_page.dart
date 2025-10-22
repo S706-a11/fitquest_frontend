@@ -40,26 +40,50 @@ class _QuestsPageState extends State<QuestsPage>
     final userProvider = context.read<UserProvider>();
     final userId = userProvider.user?.id;
 
+    print('QuestsPage: Loading quests for userId: $userId');
+
     if (userId == null) {
+      print('QuestsPage: No userId found, user not logged in');
       setState(() => _isLoading = false);
       return;
     }
 
     try {
       final userIdInt = int.parse(userId);
+      print('QuestsPage: Parsed userId to int: $userIdInt');
+
+      print('QuestsPage: Fetching active quests...');
       final activeQuestsData = await QuestService.getActiveQuests(userIdInt);
+      print('QuestsPage: Received ${activeQuestsData.length} active quests');
+
+      print('QuestsPage: Fetching completed quests...');
       final completedQuestsData = await QuestService.getCompletedQuests(
         userIdInt,
       );
+      print(
+        'QuestsPage: Received ${completedQuestsData.length} completed quests',
+      );
 
       setState(() {
-        _activeQuests = activeQuestsData.map((q) => Quest.fromJson(q)).toList();
+        _activeQuests =
+            activeQuestsData.map((q) {
+              print('QuestsPage: Parsing active quest: $q');
+              return Quest.fromJson(q);
+            }).toList();
         _completedQuests =
-            completedQuestsData.map((q) => Quest.fromJson(q)).toList();
+            completedQuestsData.map((q) {
+              print('QuestsPage: Parsing completed quest: $q');
+              return Quest.fromJson(q);
+            }).toList();
         _sortQuests();
         _isLoading = false;
       });
+
+      print(
+        'QuestsPage: Successfully loaded ${_activeQuests.length} active and ${_completedQuests.length} completed quests',
+      );
     } catch (e) {
+      print('QuestsPage: Error loading quests: $e');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(

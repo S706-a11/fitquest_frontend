@@ -24,18 +24,31 @@ class Quest {
   });
 
   factory Quest.fromJson(Map<String, dynamic> json) {
-    return Quest(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      priority: json['priority'] ?? 'Medium',
-      xpReward: json['xpReward'] ?? 0,
-      isCompleted: json['isCompleted'] ?? false,
-      dueDate: json['dueDate'],
-      duration: json['duration'],
-      totalReps: json['totalReps'],
-      totalWeight: json['totalWeight']?.toDouble(),
-    );
+    print('Quest.fromJson: Parsing quest data: $json');
+
+    try {
+      // Handle ID as either int or String
+      final id =
+          json['id'] is String
+              ? int.parse(json['id'])
+              : (json['id'] as int? ?? 0);
+
+      return Quest(
+        id: id,
+        title: json['title'] as String? ?? '',
+        description: json['description'] as String? ?? '',
+        priority: json['priority'] as String? ?? 'Medium',
+        xpReward: json['xpReward'] as int? ?? 0,
+        isCompleted: json['isCompleted'] as bool? ?? false,
+        dueDate: json['dueDate'] as String?,
+        duration: json['duration'] as int?,
+        totalReps: json['totalReps'] as int?,
+        totalWeight: (json['totalWeight'] as num?)?.toDouble(),
+      );
+    } catch (e) {
+      print('Quest.fromJson: Error parsing quest: $e');
+      rethrow;
+    }
   }
 
   Map<String, dynamic> toJson() {
