@@ -13,6 +13,7 @@ class AvailableQuestsPage extends StatefulWidget {
 
 class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
   List<QuestTemplate> _availableQuests = [];
+  int _totalCount = 0;
   bool _isLoading = true;
   String? _filterCategory;
   String? _filterDifficulty;
@@ -35,17 +36,25 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
     setState(() => _isLoading = true);
 
     final userProvider = context.read<UserProvider>();
-    final userId = userProvider.user?.id;
-
-    if (userId == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
+    final userLevel = userProvider.user?.level ?? 1;
 
     try {
-      final data = await QuestService.getAvailableQuests(userId);
+      final result = await QuestService.browseQuestTemplates(
+        search: _searchQuery.isEmpty ? null : _searchQuery,
+        categories: _filterCategory != null ? [_filterCategory!] : null,
+        difficulties: _filterDifficulty != null ? [_filterDifficulty!] : null,
+        minLevel: 1,
+        maxLevel: userLevel,
+        sortBy: 'difficulty',
+        ascending: true,
+        activeOnly: true,
+      );
+
       setState(() {
-        _availableQuests = data.map((q) => QuestTemplate.fromJson(q)).toList();
+        _totalCount = result['totalCount'] as int? ?? 0;
+        final templates = result['templates'] as List<dynamic>? ?? [];
+        _availableQuests =
+            templates.map((q) => QuestTemplate.fromJson(q)).toList();
         _isLoading = false;
       });
     } catch (e) {
@@ -87,33 +96,6 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
     }
   }
 
-  List<QuestTemplate> get _filteredQuests {
-    var quests = _availableQuests;
-
-    // Filter by category
-    if (_filterCategory != null) {
-      quests = quests.where((q) => q.category == _filterCategory).toList();
-    }
-
-    // Filter by difficulty
-    if (_filterDifficulty != null) {
-      quests = quests.where((q) => q.difficulty == _filterDifficulty).toList();
-    }
-
-    // Filter by search query
-    if (_searchQuery.isNotEmpty) {
-      final query = _searchQuery.toLowerCase();
-      quests =
-          quests.where((q) {
-            return q.title.toLowerCase().contains(query) ||
-                q.description.toLowerCase().contains(query) ||
-                q.category.toLowerCase().contains(query);
-          }).toList();
-    }
-
-    return quests;
-  }
-
   @override
   Widget build(BuildContext context) {
     final userProvider = context.watch<UserProvider>();
@@ -140,6 +122,7 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                               _searchController.clear();
                               _searchQuery = '';
                             });
+                            _loadAvailableQuests();
                           },
                         )
                         : null,
@@ -154,6 +137,7 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                 setState(() {
                   _searchQuery = value;
                 });
+                _loadAvailableQuests();
               },
             ),
           ),
@@ -175,114 +159,136 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                       child: Row(
                         children: [
                           // Category Filters
-                          _buildFilterChip(
-                            'All',
-                            _filterCategory == null,
-                            () => setState(() => _filterCategory = null),
-                            Colors.grey,
-                          ),
+                          _buildFilterChip('All', _filterCategory == null, () {
+                            setState(() => _filterCategory = null);
+                            _loadAvailableQuests();
+                          }, Colors.grey),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'General',
                             _filterCategory == 'General',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'General'
-                                          ? null
-                                          : 'General',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'General'
+                                            ? null
+                                            : 'General',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.blue,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Strength',
                             _filterCategory == 'Strength',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'Strength'
-                                          ? null
-                                          : 'Strength',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'Strength'
+                                            ? null
+                                            : 'Strength',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.red,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Cardio',
                             _filterCategory == 'Cardio',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'Cardio'
-                                          ? null
-                                          : 'Cardio',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'Cardio'
+                                            ? null
+                                            : 'Cardio',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.orange,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Flexibility',
                             _filterCategory == 'Flexibility',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'Flexibility'
-                                          ? null
-                                          : 'Flexibility',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'Flexibility'
+                                            ? null
+                                            : 'Flexibility',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.purple,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Endurance',
                             _filterCategory == 'Endurance',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'Endurance'
-                                          ? null
-                                          : 'Endurance',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'Endurance'
+                                            ? null
+                                            : 'Endurance',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.teal,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Consistency',
                             _filterCategory == 'Consistency',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'Consistency'
-                                          ? null
-                                          : 'Consistency',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'Consistency'
+                                            ? null
+                                            : 'Consistency',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.green,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Weight Loss',
                             _filterCategory == 'WeightLoss',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'WeightLoss'
-                                          ? null
-                                          : 'WeightLoss',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'WeightLoss'
+                                            ? null
+                                            : 'WeightLoss',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.pink,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Muscle Gain',
                             _filterCategory == 'MuscleGain',
-                            () => setState(
-                              () =>
-                                  _filterCategory =
-                                      _filterCategory == 'MuscleGain'
-                                          ? null
-                                          : 'MuscleGain',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterCategory =
+                                        _filterCategory == 'MuscleGain'
+                                            ? null
+                                            : 'MuscleGain',
+                              );
+                              _loadAvailableQuests();
+                            },
                             Colors.deepOrange,
                           ),
                         ],
@@ -310,72 +316,90 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                           _buildFilterChip(
                             'All',
                             _filterDifficulty == null,
-                            () => setState(() => _filterDifficulty = null),
+                            () {
+                              setState(() => _filterDifficulty = null);
+                              _loadAvailableQuests();
+                            },
                             Colors.grey,
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Beginner',
                             _filterDifficulty == 'Beginner',
-                            () => setState(
-                              () =>
-                                  _filterDifficulty =
-                                      _filterDifficulty == 'Beginner'
-                                          ? null
-                                          : 'Beginner',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterDifficulty =
+                                        _filterDifficulty == 'Beginner'
+                                            ? null
+                                            : 'Beginner',
+                              );
+                              _loadAvailableQuests();
+                            },
                             const Color(0xFF4CAF50),
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Intermediate',
                             _filterDifficulty == 'Intermediate',
-                            () => setState(
-                              () =>
-                                  _filterDifficulty =
-                                      _filterDifficulty == 'Intermediate'
-                                          ? null
-                                          : 'Intermediate',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterDifficulty =
+                                        _filterDifficulty == 'Intermediate'
+                                            ? null
+                                            : 'Intermediate',
+                              );
+                              _loadAvailableQuests();
+                            },
                             const Color(0xFF2196F3),
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Advanced',
                             _filterDifficulty == 'Advanced',
-                            () => setState(
-                              () =>
-                                  _filterDifficulty =
-                                      _filterDifficulty == 'Advanced'
-                                          ? null
-                                          : 'Advanced',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterDifficulty =
+                                        _filterDifficulty == 'Advanced'
+                                            ? null
+                                            : 'Advanced',
+                              );
+                              _loadAvailableQuests();
+                            },
                             const Color(0xFFFF9800),
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Expert',
                             _filterDifficulty == 'Expert',
-                            () => setState(
-                              () =>
-                                  _filterDifficulty =
-                                      _filterDifficulty == 'Expert'
-                                          ? null
-                                          : 'Expert',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterDifficulty =
+                                        _filterDifficulty == 'Expert'
+                                            ? null
+                                            : 'Expert',
+                              );
+                              _loadAvailableQuests();
+                            },
                             const Color(0xFFE91E63),
                           ),
                           const SizedBox(width: 8),
                           _buildFilterChip(
                             'Master',
                             _filterDifficulty == 'Master',
-                            () => setState(
-                              () =>
-                                  _filterDifficulty =
-                                      _filterDifficulty == 'Master'
-                                          ? null
-                                          : 'Master',
-                            ),
+                            () {
+                              setState(
+                                () =>
+                                    _filterDifficulty =
+                                        _filterDifficulty == 'Master'
+                                            ? null
+                                            : 'Master',
+                              );
+                              _loadAvailableQuests();
+                            },
                             const Color(0xFF9C27B0),
                           ),
                         ],
@@ -383,12 +407,24 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                     ),
                   ),
                   const Divider(height: 1),
+                  // Total Count
+                  if (_totalCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Text(
+                        'Showing ${_availableQuests.length} of $_totalCount quest${_totalCount != 1 ? 's' : ''}',
+                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      ),
+                    ),
                   // Quest List
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: _loadAvailableQuests,
                       child:
-                          _filteredQuests.isEmpty
+                          _availableQuests.isEmpty
                               ? Center(
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -430,6 +466,7 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                                             _filterCategory = null;
                                             _filterDifficulty = null;
                                           });
+                                          _loadAvailableQuests();
                                         },
                                         icon: const Icon(Icons.clear_all),
                                         label: const Text('Clear Filters'),
@@ -440,9 +477,9 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
                               )
                               : ListView.builder(
                                 padding: const EdgeInsets.all(16),
-                                itemCount: _filteredQuests.length,
+                                itemCount: _availableQuests.length,
                                 itemBuilder: (context, index) {
-                                  final quest = _filteredQuests[index];
+                                  final quest = _availableQuests[index];
                                   return _buildQuestCard(quest, userLevel);
                                 },
                               ),
