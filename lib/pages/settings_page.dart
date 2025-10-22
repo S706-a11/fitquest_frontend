@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'profile_settings_page.dart';
 import 'api_test_page.dart';
+import 'admin/quest_generator_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -55,6 +56,15 @@ class SettingsPage extends StatelessWidget {
                 () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ApiTestPage()),
+                ),
+          ),
+          _Tile(
+            label: 'Quest Template Generator',
+            trailing: const Icon(Icons.auto_awesome, color: Colors.purple),
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QuestGeneratorPage()),
                 ),
           ),
         ],

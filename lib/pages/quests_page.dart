@@ -4,7 +4,7 @@ import '../providers/user_provider.dart';
 import '../services/quest_service.dart';
 import '../models/quest.dart';
 import 'quest_detail_page.dart';
-import 'create_quest_page.dart';
+import 'available_quests_page.dart';
 
 class QuestsPage extends StatefulWidget {
   const QuestsPage({super.key});
@@ -49,17 +49,14 @@ class _QuestsPageState extends State<QuestsPage>
     }
 
     try {
-      final userIdInt = int.parse(userId);
-      print('QuestsPage: Parsed userId to int: $userIdInt');
+      print('QuestService: Fetching active quests for userId: $userId');
 
-      print('QuestsPage: Fetching active quests...');
-      final activeQuestsData = await QuestService.getActiveQuests(userIdInt);
+      print('QuestService: Fetching active quests...');
+      final activeQuestsData = await QuestService.getActiveQuests(userId);
       print('QuestsPage: Received ${activeQuestsData.length} active quests');
 
-      print('QuestsPage: Fetching completed quests...');
-      final completedQuestsData = await QuestService.getCompletedQuests(
-        userIdInt,
-      );
+      print('QuestService: Fetching completed quests...');
+      final completedQuestsData = await QuestService.getCompletedQuests(userId);
       print(
         'QuestsPage: Received ${completedQuestsData.length} completed quests',
       );
@@ -86,9 +83,14 @@ class _QuestsPageState extends State<QuestsPage>
       print('QuestsPage: Error loading quests: $e');
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error loading quests: $e')));
+        // Use addPostFrameCallback to show SnackBar after build is complete
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Error loading quests: $e')));
+          }
+        });
       }
     }
   }
@@ -190,7 +192,7 @@ class _QuestsPageState extends State<QuestsPage>
         onPressed: () async {
           final result = await Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const CreateQuestPage()),
+            MaterialPageRoute(builder: (_) => const AvailableQuestsPage()),
           );
           if (result == true) {
             _loadQuests();
@@ -221,7 +223,7 @@ class _QuestsPageState extends State<QuestsPage>
             if (isActive) ...[
               const SizedBox(height: 8),
               const Text(
-                'Tap + to create your first quest',
+                'Tap + to browse available quests',
                 style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
             ],

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/quest.dart';
 import '../services/quest_service.dart';
 import '../providers/user_provider.dart';
-import 'create_quest_page.dart';
 import 'link_exercise_to_quest_page.dart';
 
 class QuestDetailPage extends StatefulWidget {
@@ -38,16 +37,17 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     }
 
     try {
-      final userIdInt = int.parse(userId);
-      final allQuests = await QuestService.getUserQuests(userIdInt);
-      final quest = allQuests.firstWhere((q) => q.id == widget.questId);
+      final questData = await QuestService.getQuestById(
+        userId: userId,
+        questId: widget.questId,
+      );
       final exercises = await QuestService.getQuestExercises(
-        userId: userIdInt,
+        userId: userId,
         questId: widget.questId,
       );
 
       setState(() {
-        _quest = quest;
+        _quest = Quest.fromJson(questData);
         _exercises = exercises;
         _isLoading = false;
       });
@@ -65,9 +65,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (userId == null) return;
 
     try {
-      final userIdInt = int.parse(userId);
       await QuestService.toggleQuestStatus(
-        userId: userIdInt,
+        userId: userId,
         questId: widget.questId,
       );
       await _loadQuestDetails();
@@ -116,11 +115,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (confirm != true) return;
 
     try {
-      final userIdInt = int.parse(userId);
-      await QuestService.deleteQuest(
-        userId: userIdInt,
-        questId: widget.questId,
-      );
+      await QuestService.deleteQuest(userId: userId, questId: widget.questId);
 
       Navigator.pop(context, true); // Return true to indicate refresh needed
       ScaffoldMessenger.of(context).showSnackBar(
@@ -139,9 +134,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (userId == null) return;
 
     try {
-      final userIdInt = int.parse(userId);
       await QuestService.removeExerciseFromQuest(
-        userId: userIdInt,
+        userId: userId,
         questId: widget.questId,
         exerciseId: exerciseId,
       );
@@ -180,28 +174,6 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         title: const Text('Quest Details'),
         actions: [
           if (_quest != null) ...[
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (_) => CreateQuestPage(
-                          questId: _quest!.id,
-                          initialData: {
-                            'title': _quest!.title,
-                            'description': _quest!.description,
-                            'priority': _quest!.priority,
-                            'xpReward': _quest!.xpReward,
-                            'dueDate': _quest!.dueDate,
-                          },
-                        ),
-                  ),
-                );
-                if (result == true) _loadQuestDetails();
-              },
-            ),
             IconButton(icon: const Icon(Icons.delete), onPressed: _deleteQuest),
           ],
         ],
