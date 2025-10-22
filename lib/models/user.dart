@@ -1,42 +1,56 @@
 class User {
-  final int id;
-  final String name;
+  final String id;
   final String email;
+  final String displayName;
+  final String avatarUrl;
   final int level;
   final int xp;
-  final String? avatarUrl;
+  final int streakCount;
+  final double weightKg;
+  final double heightCm;
+  final DateTime createdAt;
+  //dont know yet about exercises, dailyGoals, monthlyGoals, quests
 
-  User({
+  const User({
     required this.id,
-    required this.name,
     required this.email,
+    required this.displayName,
+    required this.avatarUrl,
     required this.level,
     required this.xp,
-    this.avatarUrl,
+    required this.streakCount,
+    required this.weightKg,
+    required this.heightCm,
+    required this.createdAt,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
-    return User(
-      id: json['id'] ?? 0,
-      name:
-          json['displayName'] ?? json['name'] ?? '', // Backend uses displayName
-      email: json['email'] ?? '',
-      level: json['level'] ?? 1,
-      xp: json['xp'] ?? 0,
-      avatarUrl: json['avatarUrl'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'email': email,
-      'level': level,
-      'xp': xp,
-      'avatarUrl': avatarUrl,
+    return switch (json) {
+      {
+        'id': String tempId,
+        'email': String email,
+        'displayName': String displayName,
+        'avatarUrl': String avatarUrl,
+        'level': int level,
+        'xp': int xp,
+        'streakCount': int streakCount,
+        'weightKg': double weightKg,
+        'heightCm': double heightCm,
+        'createdAt': String createdAt,
+      } =>
+        User(
+          id: tempId,
+          email: email,
+          displayName: displayName,
+          avatarUrl: avatarUrl,
+          level: level,
+          xp: xp,
+          streakCount: streakCount,
+          weightKg: weightKg,
+          heightCm: heightCm,
+          createdAt: DateTime.parse(createdAt),
+        ),
+      _ => throw const FormatException('Failed to load User.'),
     };
   }
-
-  int get nextLevelXp => level * 100;
 }

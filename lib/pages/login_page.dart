@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'register_page.dart';
 import 'onboarding/onboarding_flow.dart';
+import '../services/user_service.dart';
+//import User model
+import '../models/user.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -19,6 +22,33 @@ class _LoginPageState extends State<LoginPage> {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  //handle Login
+  Future<void> _handleLogin() async {
+    String email = _email.text.trim();
+    String password = _password.text;
+
+    try {
+      User? user = await UserService.login(email, password);
+      if (user != null) {
+        // Navigate to onboarding flow on successful login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+        );
+      } else {
+        // Show error if login fails
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid email or password')),
+        );
+      }
+    } catch (e) {
+      // Handle any errors during login
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -54,7 +84,10 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: Colors.white54,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -73,9 +106,15 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white54,
+                    ),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+                      icon: Icon(
+                        _obscure ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.white54,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     border: OutlineInputBorder(
@@ -91,18 +130,18 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const OnboardingFlow()),
-                      );
-                    },
+                    onPressed: _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
                     ),
                     child: const Text('Log In'),
                   ),
@@ -116,7 +155,10 @@ class _LoginPageState extends State<LoginPage> {
                     Expanded(child: Divider(color: Colors.white24)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text('or', style: TextStyle(color: Colors.white54)),
+                      child: Text(
+                        'or',
+                        style: TextStyle(color: Colors.white54),
+                      ),
                     ),
                     Expanded(child: Divider(color: Colors.white24)),
                   ],

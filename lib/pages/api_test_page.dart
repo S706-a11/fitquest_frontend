@@ -75,11 +75,11 @@ class _ApiTestPageState extends State<ApiTestPage> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _buildTestButton(
-              'Get All Users',
-              Icons.people,
-              () => _testEndpoint('GET /api/users', UserService.getUsers),
-            ),
+            // _buildTestButton(
+            //   'Get All Users',
+            //   Icons.people,
+            //   () => _testEndpoint('GET /api/users', UserService.getUsers),
+            // ),
             _buildTestButton(
               'Get Exercise Types',
               Icons.fitness_center,
@@ -96,19 +96,19 @@ class _ApiTestPageState extends State<ApiTestPage> {
                 ExerciseService.getExercises,
               ),
             ),
-            _buildTestButton(
-              'Create Test User',
-              Icons.person_add,
-              () => _testEndpoint(
-                'POST /api/users',
-                () => UserService.createUser(
-                  name: 'Test User ${DateTime.now().millisecondsSinceEpoch}',
-                  email:
-                      'test${DateTime.now().millisecondsSinceEpoch}@example.com',
-                  password: 'password123',
-                ),
-              ),
-            ),
+            // _buildTestButton(
+            //   'Create Test User',
+            //   Icons.person_add,
+            //   () => _testEndpoint(
+            //     'POST /api/users',
+            //     () => UserService.createUser(
+            //       name: 'Test User ${DateTime.now().millisecondsSinceEpoch}',
+            //       email:
+            //           'test${DateTime.now().millisecondsSinceEpoch}@example.com',
+            //       password: 'password123',
+            //     ),
+            //   ),
+            // ),
             const SizedBox(height: 24),
             Card(
               color: const Color(0xFF1A1A1D),
