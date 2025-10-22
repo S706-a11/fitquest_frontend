@@ -15,11 +15,20 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
   List<QuestTemplate> _availableQuests = [];
   bool _isLoading = true;
   String? _filterCategory;
+  String? _filterDifficulty;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadAvailableQuests();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadAvailableQuests() async {
@@ -79,10 +88,30 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
   }
 
   List<QuestTemplate> get _filteredQuests {
-    if (_filterCategory == null) return _availableQuests;
-    return _availableQuests
-        .where((q) => q.category == _filterCategory)
-        .toList();
+    var quests = _availableQuests;
+
+    // Filter by category
+    if (_filterCategory != null) {
+      quests = quests.where((q) => q.category == _filterCategory).toList();
+    }
+
+    // Filter by difficulty
+    if (_filterDifficulty != null) {
+      quests = quests.where((q) => q.difficulty == _filterDifficulty).toList();
+    }
+
+    // Filter by search query
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      quests =
+          quests.where((q) {
+            return q.title.toLowerCase().contains(query) ||
+                q.description.toLowerCase().contains(query) ||
+                q.category.toLowerCase().contains(query);
+          }).toList();
+    }
+
+    return quests;
   }
 
   @override
@@ -93,92 +122,333 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Available Quests'),
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list),
-            onSelected: (value) {
-              setState(() {
-                _filterCategory = value == 'All' ? null : value;
-              });
-            },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    value: 'All',
-                    child: Text('All Categories'),
-                  ),
-                  const PopupMenuItem(value: 'General', child: Text('General')),
-                  const PopupMenuItem(
-                    value: 'Strength',
-                    child: Text('Strength'),
-                  ),
-                  const PopupMenuItem(value: 'Cardio', child: Text('Cardio')),
-                  const PopupMenuItem(
-                    value: 'Flexibility',
-                    child: Text('Flexibility'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'Endurance',
-                    child: Text('Endurance'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'WeightLoss',
-                    child: Text('Weight Loss'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'MuscleGain',
-                    child: Text('Muscle Gain'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'Consistency',
-                    child: Text('Consistency'),
-                  ),
-                ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search quests...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon:
+                    _searchQuery.isNotEmpty
+                        ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            });
+                          },
+                        )
+                        : null,
+                filled: true,
+                fillColor: Colors.white.withOpacity(0.1),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
           ),
-        ],
+        ),
       ),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                onRefresh: _loadAvailableQuests,
-                child:
-                    _filteredQuests.isEmpty
-                        ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.emoji_events,
-                                size: 64,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _filterCategory == null
-                                    ? 'No quests available for your level'
-                                    : 'No $_filterCategory quests available',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Level: $userLevel',
-                                style: const TextStyle(color: Colors.grey),
-                              ),
-                            ],
+              : Column(
+                children: [
+                  // Category and Difficulty Filter Chips
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          // Category Filters
+                          _buildFilterChip(
+                            'All',
+                            _filterCategory == null,
+                            () => setState(() => _filterCategory = null),
+                            Colors.grey,
                           ),
-                        )
-                        : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _filteredQuests.length,
-                          itemBuilder: (context, index) {
-                            final quest = _filteredQuests[index];
-                            return _buildQuestCard(quest, userLevel);
-                          },
-                        ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'General',
+                            _filterCategory == 'General',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'General'
+                                          ? null
+                                          : 'General',
+                            ),
+                            Colors.blue,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Strength',
+                            _filterCategory == 'Strength',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'Strength'
+                                          ? null
+                                          : 'Strength',
+                            ),
+                            Colors.red,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Cardio',
+                            _filterCategory == 'Cardio',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'Cardio'
+                                          ? null
+                                          : 'Cardio',
+                            ),
+                            Colors.orange,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Flexibility',
+                            _filterCategory == 'Flexibility',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'Flexibility'
+                                          ? null
+                                          : 'Flexibility',
+                            ),
+                            Colors.purple,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Endurance',
+                            _filterCategory == 'Endurance',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'Endurance'
+                                          ? null
+                                          : 'Endurance',
+                            ),
+                            Colors.teal,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Consistency',
+                            _filterCategory == 'Consistency',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'Consistency'
+                                          ? null
+                                          : 'Consistency',
+                            ),
+                            Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Weight Loss',
+                            _filterCategory == 'WeightLoss',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'WeightLoss'
+                                          ? null
+                                          : 'WeightLoss',
+                            ),
+                            Colors.pink,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Muscle Gain',
+                            _filterCategory == 'MuscleGain',
+                            () => setState(
+                              () =>
+                                  _filterCategory =
+                                      _filterCategory == 'MuscleGain'
+                                          ? null
+                                          : 'MuscleGain',
+                            ),
+                            Colors.deepOrange,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Difficulty Filters
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Difficulty: ',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'All',
+                            _filterDifficulty == null,
+                            () => setState(() => _filterDifficulty = null),
+                            Colors.grey,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Beginner',
+                            _filterDifficulty == 'Beginner',
+                            () => setState(
+                              () =>
+                                  _filterDifficulty =
+                                      _filterDifficulty == 'Beginner'
+                                          ? null
+                                          : 'Beginner',
+                            ),
+                            const Color(0xFF4CAF50),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Intermediate',
+                            _filterDifficulty == 'Intermediate',
+                            () => setState(
+                              () =>
+                                  _filterDifficulty =
+                                      _filterDifficulty == 'Intermediate'
+                                          ? null
+                                          : 'Intermediate',
+                            ),
+                            const Color(0xFF2196F3),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Advanced',
+                            _filterDifficulty == 'Advanced',
+                            () => setState(
+                              () =>
+                                  _filterDifficulty =
+                                      _filterDifficulty == 'Advanced'
+                                          ? null
+                                          : 'Advanced',
+                            ),
+                            const Color(0xFFFF9800),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Expert',
+                            _filterDifficulty == 'Expert',
+                            () => setState(
+                              () =>
+                                  _filterDifficulty =
+                                      _filterDifficulty == 'Expert'
+                                          ? null
+                                          : 'Expert',
+                            ),
+                            const Color(0xFFE91E63),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildFilterChip(
+                            'Master',
+                            _filterDifficulty == 'Master',
+                            () => setState(
+                              () =>
+                                  _filterDifficulty =
+                                      _filterDifficulty == 'Master'
+                                          ? null
+                                          : 'Master',
+                            ),
+                            const Color(0xFF9C27B0),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  // Quest List
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _loadAvailableQuests,
+                      child:
+                          _filteredQuests.isEmpty
+                              ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(
+                                      Icons.emoji_events,
+                                      size: 64,
+                                      color: Colors.grey,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _searchQuery.isNotEmpty
+                                          ? 'No quests match your search'
+                                          : _filterCategory != null ||
+                                              _filterDifficulty != null
+                                          ? 'No quests match your filters'
+                                          : 'No quests available for your level',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      'Level: $userLevel',
+                                      style: const TextStyle(
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    if (_searchQuery.isNotEmpty ||
+                                        _filterCategory != null ||
+                                        _filterDifficulty != null) ...[
+                                      const SizedBox(height: 16),
+                                      ElevatedButton.icon(
+                                        onPressed: () {
+                                          setState(() {
+                                            _searchController.clear();
+                                            _searchQuery = '';
+                                            _filterCategory = null;
+                                            _filterDifficulty = null;
+                                          });
+                                        },
+                                        icon: const Icon(Icons.clear_all),
+                                        label: const Text('Clear Filters'),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              )
+                              : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _filteredQuests.length,
+                                itemBuilder: (context, index) {
+                                  final quest = _filteredQuests[index];
+                                  return _buildQuestCard(quest, userLevel);
+                                },
+                              ),
+                    ),
+                  ),
+                ],
               ),
     );
   }
@@ -280,6 +550,30 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterChip(
+    String label,
+    bool isSelected,
+    VoidCallback onTap,
+    Color color,
+  ) {
+    return FilterChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? Colors.white : color,
+          fontSize: 12,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) => onTap(),
+      backgroundColor: Colors.grey.shade800,
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 

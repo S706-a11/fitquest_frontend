@@ -33,9 +33,10 @@ class QuestTemplate {
       if (json['targetMetrics'] is String) {
         // If it's a string, parse it as JSON
         try {
-          parsedMetrics = jsonDecode(json['targetMetrics']) as Map<String, dynamic>;
+          parsedMetrics =
+              jsonDecode(json['targetMetrics']) as Map<String, dynamic>;
         } catch (e) {
-          print('Error parsing targetMetrics: $e');
+          // Silently handle parsing errors
           parsedMetrics = null;
         }
       } else if (json['targetMetrics'] is Map) {
@@ -44,12 +45,19 @@ class QuestTemplate {
       }
     }
 
+    // Helper function to safely convert to String
+    String _toString(dynamic value, String defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is String) return value;
+      return value.toString();
+    }
+
     return QuestTemplate(
       id: json['id'] as int,
-      title: json['title'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      category: json['category'] as String? ?? 'General',
-      difficulty: json['difficulty'] as String? ?? 'Beginner',
+      title: _toString(json['title'], ''),
+      description: _toString(json['description'], ''),
+      category: _toString(json['category'], 'General'),
+      difficulty: _toString(json['difficulty'], 'Beginner'),
       minLevel: json['minLevel'] as int? ?? 1,
       maxLevel: json['maxLevel'] as int? ?? 100,
       xpReward: json['xpReward'] as int? ?? 0,
