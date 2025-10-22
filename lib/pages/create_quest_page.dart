@@ -98,12 +98,16 @@ class _CreateQuestPageState extends State<CreateQuestPage> {
         }
       } else {
         // Create new quest
+        print(
+          'CreateQuestPage: Creating quest with dueDate: ${_dueDate?.toIso8601String()}',
+        );
         await QuestService.createQuest(
           userId: userIdInt,
           title: _titleController.text,
           description: _descriptionController.text,
           xpReward: int.tryParse(_xpRewardController.text) ?? 50,
           priority: _priority,
+          dueDate: _dueDate?.toIso8601String(),
         );
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

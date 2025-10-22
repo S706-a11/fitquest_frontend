@@ -28,24 +28,44 @@ class QuestService {
 
   /// Get active quests for a user
   static Future<List<dynamic>> getActiveQuests(int userId) async {
+    print('QuestService: GET $baseUrl/users/$userId/quests/active');
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/active'),
     );
+    print(
+      'QuestService: Active quests response status: ${response.statusCode}',
+    );
+    print('QuestService: Active quests response body: ${response.body}');
+
     if (response.statusCode == 200) {
-      return json.decode(response.body) as List<dynamic>;
+      final data = json.decode(response.body) as List<dynamic>;
+      print('QuestService: Parsed ${data.length} active quests');
+      return data;
     }
-    throw Exception('Failed to load active quests');
+    throw Exception(
+      'Failed to load active quests: ${response.statusCode} - ${response.body}',
+    );
   }
 
   /// Get completed quests for a user
   static Future<List<dynamic>> getCompletedQuests(int userId) async {
+    print('QuestService: GET $baseUrl/users/$userId/quests/completed');
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/completed'),
     );
+    print(
+      'QuestService: Completed quests response status: ${response.statusCode}',
+    );
+    print('QuestService: Completed quests response body: ${response.body}');
+
     if (response.statusCode == 200) {
-      return json.decode(response.body) as List<dynamic>;
+      final data = json.decode(response.body) as List<dynamic>;
+      print('QuestService: Parsed ${data.length} completed quests');
+      return data;
     }
-    throw Exception('Failed to load completed quests');
+    throw Exception(
+      'Failed to load completed quests: ${response.statusCode} - ${response.body}',
+    );
   }
 
   /// Create a new quest
@@ -55,17 +75,31 @@ class QuestService {
     required String description,
     int? xpReward,
     String? priority,
+    String? dueDate,
   }) async {
+    final body = {
+      'title': title,
+      'description': description,
+      'xpReward': xpReward ?? 50,
+      'priority': priority ?? 'Medium',
+    };
+
+    if (dueDate != null) {
+      body['dueDate'] = dueDate;
+    }
+
+    print('QuestService: POST $baseUrl/users/$userId/quests');
+    print('QuestService: Create quest body: $body');
+
     final response = await http.post(
       Uri.parse('$baseUrl/users/$userId/quests'),
       headers: {'Content-Type': 'application/json'},
-      body: json.encode({
-        'title': title,
-        'description': description,
-        'xpReward': xpReward ?? 50,
-        'priority': priority ?? 'Medium',
-      }),
+      body: json.encode(body),
     );
+
+    print('QuestService: Create quest response status: ${response.statusCode}');
+    print('QuestService: Create quest response body: ${response.body}');
+
     return _handleResponse(response);
   }
 
