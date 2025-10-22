@@ -22,4 +22,15 @@ class ExerciseService {
     }
     throw Exception('Failed to load exercise types');
   }
+
+  /// Get exercises for a specific user
+  static Future<List<dynamic>> getUserExercises(int userId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/exercises'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as List<dynamic>;
+    }
+    throw Exception('Failed to load user exercises');
+  }
 }
