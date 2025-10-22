@@ -107,7 +107,7 @@ class UserProvider with ChangeNotifier {
 
     try {
       final response = await UserService.getUserById(_user!.id);
-      _user = User.fromJson(response);
+      _user = User.fromJson(response as Map<String, dynamic>);
       notifyListeners();
     } catch (e) {
       print('Error refreshing user: $e');
@@ -129,11 +129,11 @@ class UserProvider with ChangeNotifier {
         newLevel++;
       }
 
-      await UserService.updateUser(
-        userId: _user!.id,
-        level: newLevel,
-        xp: remainingXp,
-      );
+      // await UserService.updateUser(
+      //   userId: _user!.id,
+      //   level: newLevel,
+      //   xp: remainingXp,
+      // );
 
       await refreshUser();
     } catch (e) {

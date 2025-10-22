@@ -50,15 +50,15 @@ class AuthService {
     String password,
   ) async {
     try {
-      final response = await UserService.createUser(
-        name: name,
-        email: email,
-        password: password,
-      );
+      // final response = await UserService.createUser(
+      //   name: name,
+      //   email: email,
+      //   password: password,
+      // );
 
-      final user = User.fromJson(response);
-      await _saveUserLocally(user);
-      return user;
+      // final user = User.fromJson(response);
+      // await _saveUserLocally(user);
+      // return user;
     } catch (e) {
       print('Registration error: $e');
       rethrow; // Re-throw to let the UI handle specific error messages
@@ -68,22 +68,22 @@ class AuthService {
   // Save user data locally
   static Future<void> _saveUserLocally(User user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_userIdKey, user.id);
-    await prefs.setString(_userNameKey, user.name);
+    await prefs.setString(_userIdKey, user.id);
+    await prefs.setString(_userNameKey, user.displayName);
     await prefs.setString(_userEmailKey, user.email);
   }
 
   // Get current user from local storage
   static Future<User?> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt(_userIdKey);
+    final userId = prefs.getString(_userIdKey);
 
     if (userId == null) return null;
 
     try {
       // Fetch fresh user data from API
       final response = await UserService.getUserById(userId);
-      return User.fromJson(response);
+      return User.fromJson(response as Map<String, dynamic>);
     } catch (e) {
       print('Error fetching user: $e');
       // Fallback to cached data
@@ -91,7 +91,18 @@ class AuthService {
       final email = prefs.getString(_userEmailKey);
 
       if (name != null && email != null) {
-        return User(id: userId, name: name, email: email, level: 1, xp: 0);
+        return User(
+          id: userId,
+          email: email,
+          displayName: name,
+          avatarUrl: '',
+          level: 1,
+          xp: 0,
+          streakCount: 0,
+          weightKg: 0.0,
+          heightCm: 0.0,
+          createdAt: DateTime.now(),
+        );
       }
       return null;
     }

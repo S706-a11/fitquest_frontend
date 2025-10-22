@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'register_page.dart';
 import 'onboarding/onboarding_flow.dart';
+import '../services/user_service.dart';
+//import User model
+import '../models/user.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,12 +16,22 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+  late Future<User> futureUser;
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
     super.dispose();
+  }
+
+  //initState to fetch data example
+  @override
+  void initState() {
+    super.initState();
+    futureUser = UserService.getUserById(
+      "9ab1f100-0255-4ca0-acdd-1550c51c1803",
+    );
   }
 
   @override
@@ -32,6 +45,54 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                FutureBuilder<User>(
+                  future: futureUser,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasData) {
+                      return Column(
+                        children: [
+                          Text(
+                            snapshot.data!.id,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            snapshot.data!.displayName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Text(
+                            snapshot.data!.email,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          Image(
+                            image: NetworkImage(snapshot.data!.avatarUrl),
+                            width: 100,
+                            height: 100,
+                          ),
+                        ],
+                      );
+                    } else if (snapshot.hasError) {
+                      return Text('${snapshot.error}');
+                    }
+
+                    // By default, show a loading spinner.
+                    return const CircularProgressIndicator();
+                  },
+                ),
                 // App Title
                 const Text(
                   'FitQuest',
@@ -54,7 +115,10 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.email_outlined,
+                      color: Colors.white54,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,
@@ -73,9 +137,15 @@ class _LoginPageState extends State<LoginPage> {
                     hintStyle: const TextStyle(color: Colors.white54),
                     filled: true,
                     fillColor: const Color(0xFF1A1A1D),
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                    prefixIcon: const Icon(
+                      Icons.lock_outline,
+                      color: Colors.white54,
+                    ),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off, color: Colors.white54),
+                      icon: Icon(
+                        _obscure ? Icons.visibility : Icons.visibility_off,
+                        color: Colors.white54,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                     border: OutlineInputBorder(
@@ -94,15 +164,22 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+                        MaterialPageRoute(
+                          builder: (_) => const OnboardingFlow(),
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                      ),
                     ),
                     child: const Text('Log In'),
                   ),
@@ -116,7 +193,10 @@ class _LoginPageState extends State<LoginPage> {
                     Expanded(child: Divider(color: Colors.white24)),
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Text('or', style: TextStyle(color: Colors.white54)),
+                      child: Text(
+                        'or',
+                        style: TextStyle(color: Colors.white54),
+                      ),
                     ),
                     Expanded(child: Divider(color: Colors.white24)),
                   ],
