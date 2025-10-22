@@ -33,11 +33,35 @@ class Quest {
               ? int.parse(json['id'])
               : (json['id'] as int? ?? 0);
 
+      // Handle priority as either int or String
+      // Backend sends: 0=Low, 1=Medium, 2=High, 3=Critical
+      String priorityString;
+      if (json['priority'] is int) {
+        switch (json['priority'] as int) {
+          case 0:
+            priorityString = 'Low';
+            break;
+          case 1:
+            priorityString = 'Medium';
+            break;
+          case 2:
+            priorityString = 'High';
+            break;
+          case 3:
+            priorityString = 'Critical';
+            break;
+          default:
+            priorityString = 'Medium';
+        }
+      } else {
+        priorityString = json['priority'] as String? ?? 'Medium';
+      }
+
       return Quest(
         id: id,
         title: json['title'] as String? ?? '',
         description: json['description'] as String? ?? '',
-        priority: json['priority'] as String? ?? 'Medium',
+        priority: priorityString,
         xpReward: json['xpReward'] as int? ?? 0,
         isCompleted: json['isCompleted'] as bool? ?? false,
         dueDate: json['dueDate'] as String?,

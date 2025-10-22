@@ -89,12 +89,10 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     if (userId == null) return;
 
     try {
-      final userIdInt = int.parse(userId);
-
       // Link each selected exercise
       for (final exerciseId in _selectedExerciseIds) {
         await QuestService.addExerciseToQuest(
-          userId: userIdInt,
+          userId: userId,
           questId: widget.questId,
           exerciseId: exerciseId,
         );
