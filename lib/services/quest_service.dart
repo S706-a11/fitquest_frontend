@@ -79,4 +79,93 @@ class QuestService {
     );
     return _handleResponse(response);
   }
+
+  /// Get a specific quest by ID
+  static Future<Map<String, dynamic>> getQuestById({
+    required int userId,
+    required int questId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+    );
+    return _handleResponse(response);
+  }
+
+  /// Update a quest
+  static Future<Map<String, dynamic>> updateQuest({
+    required int userId,
+    required int questId,
+    String? title,
+    String? description,
+    int? xpReward,
+    String? priority,
+    String? dueDate,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (xpReward != null) body['xpReward'] = xpReward;
+    if (priority != null) body['priority'] = priority;
+    if (dueDate != null) body['dueDate'] = dueDate;
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(body),
+    );
+    return _handleResponse(response);
+  }
+
+  /// Delete a quest
+  static Future<void> deleteQuest({
+    required int userId,
+    required int questId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId'),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to delete quest: ${response.statusCode}');
+    }
+  }
+
+  /// Get quest exercises
+  static Future<List<dynamic>> getQuestExercises({
+    required int userId,
+    required int questId,
+  }) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises'),
+    );
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as List<dynamic>;
+    }
+    throw Exception('Failed to load quest exercises');
+  }
+
+  /// Add exercise to quest
+  static Future<Map<String, dynamic>> addExerciseToQuest({
+    required int userId,
+    required int questId,
+    required int exerciseId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises/$exerciseId'),
+    );
+    return _handleResponse(response);
+  }
+
+  /// Remove exercise from quest
+  static Future<void> removeExerciseFromQuest({
+    required int userId,
+    required int questId,
+    required int exerciseId,
+  }) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/users/$userId/quests/$questId/exercises/$exerciseId'),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Failed to remove exercise: ${response.statusCode}');
+    }
+  }
 }
