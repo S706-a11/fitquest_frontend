@@ -16,7 +16,6 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
-  late Future<User> futureUser;
 
   @override
   void dispose() {
@@ -25,13 +24,31 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  //initState to fetch data example
-  @override
-  void initState() {
-    super.initState();
-    futureUser = UserService.getUserById(
-      "9ab1f100-0255-4ca0-acdd-1550c51c1803",
-    );
+  //handle Login
+  Future<void> _handleLogin() async {
+    String email = _email.text.trim();
+    String password = _password.text;
+
+    try {
+      User? user = await UserService.login(email, password);
+      if (user != null) {
+        // Navigate to onboarding flow on successful login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const OnboardingFlow()),
+        );
+      } else {
+        // Show error if login fails
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid email or password')),
+        );
+      }
+    } catch (e) {
+      // Handle any errors during login
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
   }
 
   @override
@@ -45,54 +62,6 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                FutureBuilder<User>(
-                  future: futureUser,
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-                      return Column(
-                        children: [
-                          Text(
-                            snapshot.data!.id,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            snapshot.data!.displayName,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Text(
-                            snapshot.data!.email,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          Image(
-                            image: NetworkImage(snapshot.data!.avatarUrl),
-                            width: 100,
-                            height: 100,
-                          ),
-                        ],
-                      );
-                    } else if (snapshot.hasError) {
-                      return Text('${snapshot.error}');
-                    }
-
-                    // By default, show a loading spinner.
-                    return const CircularProgressIndicator();
-                  },
-                ),
                 // App Title
                 const Text(
                   'FitQuest',
@@ -161,14 +130,7 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const OnboardingFlow(),
-                        ),
-                      );
-                    },
+                    onPressed: _handleLogin,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00FF99),
                       foregroundColor: Colors.black,
