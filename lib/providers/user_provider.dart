@@ -56,22 +56,30 @@ class UserProvider with ChangeNotifier {
 
   // Register
   Future<bool> register(String name, String email, String password) async {
+    print('UserProvider: Starting registration for $name, $email');
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
       _user = await AuthService.register(name, email, password);
+      print('UserProvider: AuthService.register returned user: ${_user?.id}');
+
       if (_user == null) {
         _error = 'Registration failed';
+        print('UserProvider: Registration failed - user is null');
         _isLoading = false;
         notifyListeners();
         return false;
       }
+
+      print('UserProvider: Registration successful for user ${_user!.id}');
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
+      print('UserProvider: Registration exception: $e');
+
       // Parse error message for user-friendly feedback
       final errorStr = e.toString();
       if (errorStr.contains('duplicate key') ||
@@ -86,8 +94,10 @@ class UserProvider with ChangeNotifier {
       } else if (errorStr.contains('400')) {
         _error = 'Invalid input. Please check your information.';
       } else {
-        _error = 'Registration failed. Please try again.';
+        _error = errorStr; // Show the actual error message for debugging
       }
+
+      print('UserProvider: Set error message: $_error');
       _isLoading = false;
       notifyListeners();
       return false;

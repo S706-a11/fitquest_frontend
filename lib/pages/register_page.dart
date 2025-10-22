@@ -243,19 +243,25 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _isLoading = true);
 
     try {
+      print('RegisterPage: Starting registration for $name, $email');
       final userProvider = context.read<UserProvider>();
       final success = await userProvider.register(name, email, pass);
 
       if (!mounted) return;
 
+      print('RegisterPage: Registration result: $success');
+
       if (success) {
         // Update weight and height if provided
         if ((weight != null && weight > 0) || (height != null && height > 0)) {
           try {
+            print(
+              'RegisterPage: Updating weight/height - weight: $weight, height: $height',
+            );
             await userProvider.refreshUser();
             // You could also call updateUser here if needed
           } catch (e) {
-            print('Note: Could not update weight/height: $e');
+            print('RegisterPage: Could not update weight/height: $e');
           }
         }
 
@@ -270,9 +276,11 @@ class _RegisterPageState extends State<RegisterPage> {
         );
       } else {
         // Show error from provider
+        print('RegisterPage: Registration failed - ${userProvider.error}');
         _toast(userProvider.error ?? 'Registration failed');
       }
     } catch (e) {
+      print('RegisterPage: Registration exception: $e');
       if (!mounted) return;
       _toast('Registration failed: $e');
     } finally {
