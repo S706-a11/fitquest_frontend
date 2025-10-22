@@ -28,18 +28,12 @@ class QuestService {
 
   /// Get active quests for a user
   static Future<List<dynamic>> getActiveQuests(String userId) async {
-    print('QuestService: GET $baseUrl/users/$userId/quests/active');
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/active'),
     );
-    print(
-      'QuestService: Active quests response status: ${response.statusCode}',
-    );
-    print('QuestService: Active quests response body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body) as List<dynamic>;
-      print('QuestService: Parsed ${data.length} active quests');
       return data;
     }
     throw Exception(
@@ -49,18 +43,12 @@ class QuestService {
 
   /// Get completed quests for a user
   static Future<List<dynamic>> getCompletedQuests(String userId) async {
-    print('QuestService: GET $baseUrl/users/$userId/quests/completed');
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/completed'),
     );
-    print(
-      'QuestService: Completed quests response status: ${response.statusCode}',
-    );
-    print('QuestService: Completed quests response body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body) as List<dynamic>;
-      print('QuestService: Parsed ${data.length} completed quests');
       return data;
     }
     throw Exception(
@@ -70,18 +58,12 @@ class QuestService {
 
   /// Get available quest templates for user's level
   static Future<List<dynamic>> getAvailableQuests(String userId) async {
-    print('QuestService: GET $baseUrl/users/$userId/quests/available');
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/available'),
     );
-    print(
-      'QuestService: Available quests response status: ${response.statusCode}',
-    );
-    print('QuestService: Available quests response body: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = json.decode(response.body) as List<dynamic>;
-      print('QuestService: Parsed ${data.length} available quest templates');
       return data;
     }
     throw Exception(
@@ -94,14 +76,10 @@ class QuestService {
     required String userId,
     required int templateId,
   }) async {
-    print('QuestService: POST $baseUrl/users/$userId/quests/$templateId/claim');
     final response = await http.post(
       Uri.parse('$baseUrl/users/$userId/quests/$templateId/claim'),
       headers: {'Content-Type': 'application/json'},
     );
-
-    print('QuestService: Claim quest response status: ${response.statusCode}');
-    print('QuestService: Claim quest response body: ${response.body}');
 
     return _handleResponse(response);
   }
@@ -146,17 +124,11 @@ class QuestService {
       body['DueDate'] = dueDate;
     }
 
-    print('QuestService: POST $baseUrl/users/$userId/quests');
-    print('QuestService: Create quest body: $body');
-
     final response = await http.post(
       Uri.parse('$baseUrl/users/$userId/quests'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
-
-    print('QuestService: Create quest response status: ${response.statusCode}');
-    print('QuestService: Create quest response body: ${response.body}');
 
     return _handleResponse(response);
   }
@@ -283,19 +255,11 @@ class QuestService {
       body['difficulties'] = difficulties;
     }
 
-    print('QuestService: POST $baseUrl/generate-quest-templates');
-    print('QuestService: Generate templates body: $body');
-
     final response = await http.post(
       Uri.parse('$baseUrl/generate-quest-templates'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
-
-    print(
-      'QuestService: Generate templates response status: ${response.statusCode}',
-    );
-    print('QuestService: Generate templates response body: ${response.body}');
 
     return _handleResponse(response);
   }
