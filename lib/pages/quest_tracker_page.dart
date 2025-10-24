@@ -2,7 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:provider/provider.dart';
 import '../services/location_service.dart';
+import '../services/exercise_service.dart';
+import '../providers/user_provider.dart';
 
 class QuestTrackerPage extends StatefulWidget {
   final String? titleOverride;
@@ -241,16 +244,107 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
   }
 
   Future<void> _saveWorkout(int xp) async {
-    // TODO: Call backend API to save workout
-    // POST /api/exercises/sessions
-    // Body: { questId, exerciseType, duration, distance, route, xp }
+    final userProvider = context.read<UserProvider>();
+    final userId = userProvider.user?.id;
 
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Workout saved! +$xp XP')));
-      Navigator.of(context).pop();
+    if (userId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error: User not logged in')),
+        );
+      }
+      return;
     }
+
+    try {
+      final userIdInt = int.parse(userId);
+
+      // Convert route points to the format expected by the API
+      List<Map<String, double>>? route;
+      if (_routePoints.isNotEmpty) {
+        route =
+            _routePoints.map((point) {
+              return {'latitude': point.latitude, 'longitude': point.longitude};
+            }).toList();
+      }
+
+      // Calculate calories (rough estimation)
+      final calories = _calculateCalories(
+        widget.exerciseType,
+        elapsed.inMinutes,
+        _distance / 1000, // Convert to km
+      );
+
+      // Log the exercise session
+      await ExerciseService.logExerciseSession(
+        userId: userIdInt,
+        exerciseType: widget.exerciseType,
+        duration: elapsed.inSeconds,
+        distance: _distance > 0 ? _distance : null,
+        calories: calories,
+        route: route,
+        questId: widget.questId,
+        metrics: {
+          'xp': xp,
+          'avgSpeed': _speed,
+          if (_shouldShowMap() && _distance > 0)
+            'avgPace': (elapsed.inSeconds / 60) / (_distance / 1000),
+        },
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Workout saved! +$xp XP'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop(true); // Return true to indicate success
+      }
+    } catch (e) {
+      print('Error saving workout: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save workout: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  int _calculateCalories(String exerciseType, int minutes, double distanceKm) {
+    // Rough MET (Metabolic Equivalent) calculations
+    // Formula: Calories = MET × weight(kg) × time(hours)
+    // Assuming average weight of 70kg
+    const avgWeight = 70;
+    final hours = minutes / 60;
+
+    double met;
+    switch (exerciseType) {
+      case 'running':
+        // Running at ~10 km/h (6 min/km pace) = MET 10
+        met = distanceKm > 0 ? (distanceKm / hours) / 1.5 : 8.0;
+        break;
+      case 'cycling':
+        // Cycling at moderate pace = MET 8
+        met = 8.0;
+        break;
+      case 'swimming':
+        // Swimming = MET 8
+        met = 8.0;
+        break;
+      case 'strength':
+        // Weight training = MET 6
+        met = 6.0;
+        break;
+      default:
+        // General exercise = MET 5
+        met = 5.0;
+    }
+
+    return (met * avgWeight * hours).round();
   }
 
   String _hhmmss(Duration d) {
