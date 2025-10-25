@@ -78,6 +78,9 @@ class _QuestsPageState extends State<QuestsPage>
       if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
         parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
       }
+      if (q.totalSets != null && q.targetSets != null && q.targetSets! > 0) {
+        parts.add((q.totalSets! / q.targetSets!).clamp(0.0, 1.0));
+      }
       if (q.totalWeight != null &&
           q.targetWeight != null &&
           q.targetWeight! > 0) {
@@ -459,6 +462,9 @@ class _QuestListItem extends StatelessWidget {
     if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
       parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
     }
+    if (q.totalSets != null && q.targetSets != null && q.targetSets! > 0) {
+      parts.add((q.totalSets! / q.targetSets!).clamp(0.0, 1.0));
+    }
     if (q.totalWeight != null &&
         q.targetWeight != null &&
         q.targetWeight! > 0) {
@@ -593,6 +599,13 @@ class _QuestListItem extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     _formatDuration(quest.duration),
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                  const SizedBox(width: 16),
+                  Icon(Icons.view_array, size: 16, color: Colors.grey[400]),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${quest.totalSets ?? 0} sets',
                     style: TextStyle(color: Colors.grey[400], fontSize: 12),
                   ),
                   const SizedBox(width: 16),

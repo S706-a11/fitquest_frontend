@@ -36,16 +36,17 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Level Up! 🎉'),
-        content: Text('Congrats! You reached level $newLevel.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Nice'),
-          )
-        ],
-      ),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Level Up! 🎉'),
+            content: Text('Congrats! You reached level $newLevel.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Nice'),
+              ),
+            ],
+          ),
     );
   }
 
