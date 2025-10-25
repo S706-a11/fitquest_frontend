@@ -73,6 +73,25 @@ class _QuestsPageState extends State<QuestsPage>
   }
 
   void _sortQuests() {
+    double _ratio(Quest q) {
+      final parts = <double>[];
+      if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
+        parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
+      }
+      if (q.totalWeight != null && q.targetWeight != null && q.targetWeight! > 0) {
+        parts.add(((q.totalWeight ?? 0) / (q.targetWeight ?? 1)).clamp(0.0, 1.0));
+      }
+      if (q.duration != null && q.targetDuration != null && q.targetDuration! > 0) {
+        parts.add(((q.duration ?? 0) / (q.targetDuration ?? 1)).clamp(0.0, 1.0));
+      }
+      if (parts.isNotEmpty) {
+        final avg = parts.reduce((a, b) => a + b) / parts.length;
+        return avg.clamp(0.0, 1.0);
+      }
+      final completed = q.completedExercisesCount ?? 0;
+      final total = q.exercisesCount ?? 0;
+      return total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
+    }
     switch (_sortBy) {
       case 'priority':
         final priorityOrder = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3};
@@ -100,12 +119,8 @@ class _QuestsPageState extends State<QuestsPage>
         });
         break;
       case 'progress':
-        _activeQuests.sort(
-          (a, b) => (b.duration ?? 0).compareTo(a.duration ?? 0),
-        );
-        _completedQuests.sort(
-          (a, b) => (b.duration ?? 0).compareTo(a.duration ?? 0),
-        );
+        _activeQuests.sort((a, b) => _ratio(b).compareTo(_ratio(a)));
+        _completedQuests.sort((a, b) => _ratio(b).compareTo(_ratio(a)));
         break;
     }
   }
@@ -381,15 +396,14 @@ class _QuestsPageState extends State<QuestsPage>
           return _QuestListItem(
             quest: quest,
             onTap: () async {
-              final result = await Navigator.push(
+              await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => QuestDetailPage(questId: quest.id),
                 ),
               );
-              if (result == true) {
-                _loadQuests();
-              }
+              // Always reload on return to reflect any auto-completion or changes
+              _loadQuests();
             },
           );
         },
@@ -429,11 +443,36 @@ class _QuestListItem extends StatelessWidget {
     return '${mins}m';
   }
 
+  // Compute quest progress [0..1]. Prefer target-based totals if present,
+  // else fall back to completed/total exercise count.
+  double _computeProgressRatio(Quest q) {
+    final parts = <double>[];
+    if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
+      parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
+    }
+    if (q.totalWeight != null && q.targetWeight != null && q.targetWeight! > 0) {
+      parts.add(((q.totalWeight ?? 0) / (q.targetWeight ?? 1)).clamp(0.0, 1.0));
+    }
+    if (q.duration != null && q.targetDuration != null && q.targetDuration! > 0) {
+      parts.add(((q.duration ?? 0) / (q.targetDuration ?? 1)).clamp(0.0, 1.0));
+    }
+    if (parts.isNotEmpty) {
+      final avg = parts.reduce((a, b) => a + b) / parts.length;
+      return avg.clamp(0.0, 1.0);
+    }
+    final completed = q.completedExercisesCount ?? 0;
+    final total = q.exercisesCount ?? 0;
+    return total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
+  }
+
   Widget _buildProgressBar() {
+    final progress = _computeProgressRatio(quest);
+    final progressPercent = (progress * 100).toInt();
+    final usingCounts = (quest.totalReps == null &&
+        quest.totalWeight == null &&
+        quest.duration == null);
     final completed = quest.completedExercisesCount ?? 0;
     final total = quest.exercisesCount ?? 0;
-    final progress = total > 0 ? completed / total : 0.0;
-    final progressPercent = (progress * 100).toInt();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -442,21 +481,30 @@ class _QuestListItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Exercises Progress',
+              'Progress',
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.grey[400],
                 fontWeight: FontWeight.w500,
               ),
             ),
-            Text(
-              '$completed/$total ($progressPercent%)',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[400],
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            usingCounts
+                ? Text(
+                    '$completed/$total ($progressPercent%)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  )
+                : Text(
+                    '$progressPercent%',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[400],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
           ],
         ),
         const SizedBox(height: 6),

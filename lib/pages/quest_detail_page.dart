@@ -594,7 +594,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
       appBar: AppBar(
         title: const Text('Quest Details'),
         actions: [
-          if (_quest != null) ...[
+          if (_quest != null && !_quest!.isCompleted) ...[
             IconButton(icon: const Icon(Icons.delete), onPressed: _deleteQuest),
           ],
         ],
@@ -796,22 +796,23 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                             'Linked Exercises',
                             style: Theme.of(context).textTheme.titleLarge,
                           ),
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (_) => LinkExerciseToQuestPage(
-                                        questId: widget.questId,
-                                      ),
-                                ),
-                              );
-                              if (result == true) _loadQuestDetails();
-                            },
-                            icon: const Icon(Icons.add),
-                            label: const Text('Add Exercise'),
-                          ),
+                          if (!_quest!.isCompleted)
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (_) => LinkExerciseToQuestPage(
+                                          questId: widget.questId,
+                                        ),
+                                  ),
+                                );
+                                if (result == true) _loadQuestDetails();
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Add Exercise'),
+                            ),
                         ],
                       ),
                       const SizedBox(height: 8),
@@ -943,7 +944,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!isCompleted)
+                                  if (!isCompleted && !(_quest?.isCompleted ?? false))
                                     ElevatedButton.icon(
                                       onPressed:
                                           () => _completeExercise(exercise),
@@ -959,16 +960,17 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                       ),
                                     ),
                                   const SizedBox(width: 8),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.red,
+                                  if (!(_quest?.isCompleted ?? false))
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.delete,
+                                        color: Colors.red,
+                                      ),
+                                      onPressed:
+                                          () => _removeExercise(
+                                            exercise['id'] as String,
+                                          ), // UUID string
                                     ),
-                                    onPressed:
-                                        () => _removeExercise(
-                                          exercise['id'] as String,
-                                        ), // UUID string
-                                  ),
                                 ],
                               ),
                             ),
