@@ -6,30 +6,6 @@
     "version": "v1"
   },
   "paths": {
-    "/api/generate-quest-templates": {
-      "post": {
-        "tags": [
-          "Admin",
-          "Quest Templates"
-        ],
-        "operationId": "GenerateQuestTemplates",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/GenerateQuestTemplatesDto"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Success"
-          }
-        }
-      }
-    },
     "/api/daily-goals": {
       "get": {
         "tags": [
@@ -508,6 +484,29 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    },
+    "/api/generate-quest-templates": {
+      "post": {
+        "tags": [
+          "Quest Templates"
+        ],
+        "operationId": "GenerateQuestTemplates",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateQuestTemplatesDto"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Success"
@@ -2088,6 +2087,30 @@
           "note": {
             "type": "string",
             "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "questId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "totalReps": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "totalWeight": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "duration": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -2446,16 +2469,10 @@
             "format": "date-time",
             "nullable": true
           },
-          "endAtSet": {
-            "type": "boolean"
-          },
           "endAt": {
             "type": "string",
             "format": "date-time",
             "nullable": true
-          },
-          "noteSet": {
-            "type": "boolean"
           },
           "note": {
             "type": "string",

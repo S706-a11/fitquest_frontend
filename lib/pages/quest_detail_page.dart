@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/quest.dart';
 import '../services/quest_service.dart';
+import '../services/exercise_service.dart';
 import '../providers/user_provider.dart';
 import 'link_exercise_to_quest_page.dart';
 
@@ -51,9 +52,83 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         _exercises = exercises;
         _isLoading = false;
       });
+
+      // Auto-complete quest if all exercises are completed
+      await _checkAndAutoCompleteQuest();
     } catch (e) {
       print('Error loading quest details: $e');
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _checkAndAutoCompleteQuest() async {
+    if (_quest == null || _quest!.isCompleted) return;
+
+    // Check if there are exercises and all are completed
+    if (_exercises.isEmpty) return;
+
+    final completedCount = _exercises.where((ex) => ex['endAt'] != null).length;
+    final totalCount = _exercises.length;
+
+    // If all exercises are completed and quest is not yet marked complete
+    if (completedCount == totalCount && completedCount > 0) {
+      print('All exercises completed! Auto-completing quest...');
+
+      final userProvider = context.read<UserProvider>();
+      final userId = userProvider.user?.id;
+      if (userId == null) return;
+
+      try {
+        await QuestService.toggleQuestStatus(
+          userId: userId,
+          questId: widget.questId,
+          completed: true, // Explicitly mark as completed
+        );
+
+        // Reload to get updated quest status
+        final questData = await QuestService.getQuestById(
+          userId: userId,
+          questId: widget.questId,
+        );
+
+        setState(() {
+          _quest = Quest.fromJson(questData);
+        });
+
+        // Show congratulations message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.celebration, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '🎉 Quest Completed!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                        Text('Earned ${_quest!.xpReward} XP!'),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Error auto-completing quest: $e');
+      }
     }
   }
 
@@ -65,16 +140,20 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (userId == null) return;
 
     try {
+      // Toggle to the opposite of current status
+      final newStatus = !_quest!.isCompleted;
+
       await QuestService.toggleQuestStatus(
         userId: userId,
         questId: widget.questId,
+        completed: newStatus,
       );
       await _loadQuestDetails();
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _quest!.isCompleted ? 'Quest marked as active' : 'Quest completed!',
+            newStatus ? 'Quest completed!' : 'Quest marked as active',
           ),
         ),
       );
@@ -150,6 +229,188 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         context,
       ).showSnackBar(SnackBar(content: Text('Failed to remove exercise: $e')));
     }
+  }
+
+  Future<void> _completeExercise(Map<String, dynamic> exercise) async {
+    final isCompleted = exercise['endAt'] != null;
+    if (isCompleted) {
+      // Already completed
+      return;
+    }
+
+    final exerciseId = exercise['id'] as String;
+    final exerciseName = exercise['exerciseTypeName'] ?? 'Exercise';
+    final sets = (exercise['sets'] as int?) ?? 0;
+    final repsPerSet = (exercise['repsPerSet'] as int?) ?? 0;
+    final weightKg = (exercise['weightKg'] as num?)?.toDouble() ?? 0.0;
+    final note = (exercise['note'] as String?) ?? '';
+
+    final setsController = TextEditingController(text: sets.toString());
+    final repsController = TextEditingController(text: repsPerSet.toString());
+    final weightController = TextEditingController(text: weightKg.toString());
+    final noteController = TextEditingController(text: note);
+
+    // Show detail input dialog for completion
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Complete: $exerciseName'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: setsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Sets',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: repsController,
+                    decoration: const InputDecoration(
+                      labelText: 'Reps per Set',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: weightController,
+                    decoration: const InputDecoration(
+                      labelText: 'Weight (kg)',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: noteController,
+                    decoration: const InputDecoration(
+                      labelText: 'Note (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => Navigator.pop(context, true),
+                icon: const Icon(Icons.check),
+                label: const Text('Complete'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final newSets = int.tryParse(setsController.text);
+      final newReps = int.tryParse(repsController.text);
+      final newWeight = double.tryParse(weightController.text);
+      final newNote =
+          noteController.text.trim().isEmpty
+              ? null
+              : noteController.text.trim();
+
+      await ExerciseService.completeExercise(
+        exerciseId: exerciseId,
+        sets: newSets,
+        repsPerSet: newReps,
+        weightKg: newWeight,
+        note: newNote,
+      );
+
+      await _loadQuestDetails();
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Exercise completed! 🎉')));
+      }
+
+      // Check if all exercises are complete to auto-complete quest
+      await _checkAndAutoCompleteQuest();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to complete exercise: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildProgressSection() {
+    // Count completed exercises (those with endAt timestamp)
+    final completedCount = _exercises.where((ex) => ex['endAt'] != null).length;
+    final totalCount = _exercises.length;
+    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
+    final progressPercent = (progress * 100).toInt();
+
+    print('📊 Progress calculation:');
+    print('   Total exercises: $totalCount');
+    print('   Completed exercises: $completedCount');
+    print('   Progress: $progressPercent%');
+
+    // Debug: Print each exercise's completion status
+    for (var i = 0; i < _exercises.length; i++) {
+      final ex = _exercises[i];
+      print(
+        '   Exercise ${i + 1}: ${ex['exerciseTypeName']} - endAt: ${ex['endAt']}',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Progress',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            Text(
+              '$completedCount / $totalCount exercises ($progressPercent%)',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 12,
+            backgroundColor: Colors.grey[300],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              progress == 1.0 ? Colors.green : Colors.blue,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   String _formatDuration(int? seconds) {
@@ -231,6 +492,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                 _quest!.description,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
+                              const SizedBox(height: 16),
+
+                              // Progress Indicator
+                              _buildProgressSection(),
+
                               const SizedBox(height: 16),
                               Wrap(
                                 spacing: 8,
@@ -343,27 +609,149 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                         )
                       else
                         ..._exercises.map((exercise) {
+                          final isCompleted = exercise['endAt'] != null;
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
+                            color: isCompleted ? Colors.green[50] : null,
                             child: ListTile(
-                              leading: const CircleAvatar(
-                                child: Icon(Icons.fitness_center),
-                              ),
-                              title: Text(
-                                exercise['name'] ?? 'Unknown Exercise',
-                              ),
-                              subtitle: Text(
-                                '${exercise['sets'] ?? 0} sets × ${exercise['reps'] ?? 0} reps @ ${exercise['weight'] ?? 0} kg',
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    isCompleted ? Colors.green : Colors.blue,
+                                child: Icon(
+                                  isCompleted
+                                      ? Icons.check
+                                      : Icons.fitness_center,
+                                  color: Colors.white,
                                 ),
-                                onPressed:
-                                    () => _removeExercise(
-                                      exercise['id'] as String,
-                                    ), // UUID string
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      exercise['exerciseTypeName'] ??
+                                          exercise['name'] ??
+                                          'Unknown Exercise',
+                                      style: TextStyle(
+                                        decoration:
+                                            isCompleted
+                                                ? TextDecoration.lineThrough
+                                                : null,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCompleted)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.green,
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Planned workout
+                                  if (!isCompleted)
+                                    Text(
+                                      'Plan: ${exercise['sets'] ?? 0} sets × ${exercise['repsPerSet'] ?? 0} reps @ ${exercise['weightKg'] ?? 0} kg',
+                                    ),
+                                  // Completed workout data
+                                  if (isCompleted) ...[
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.check_circle,
+                                          size: 16,
+                                          color: Colors.green,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Completed: ${exercise['totalReps'] ?? 0} total reps',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.fitness_center,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Total Weight: ${(exercise['totalWeight'] ?? 0).toStringAsFixed(1)} kg',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        const Icon(
+                                          Icons.timer,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '${exercise['duration'] ?? 0}s',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                  if (exercise['note'] != null &&
+                                      (exercise['note'] as String).isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        exercise['note'],
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                          fontStyle: FontStyle.italic,
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (!isCompleted)
+                                    ElevatedButton.icon(
+                                      onPressed:
+                                          () => _completeExercise(exercise),
+                                      icon: const Icon(Icons.check, size: 18),
+                                      label: const Text('Complete'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 8,
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    ),
+                                    onPressed:
+                                        () => _removeExercise(
+                                          exercise['id'] as String,
+                                        ), // UUID string
+                                  ),
+                                ],
                               ),
                             ),
                           );

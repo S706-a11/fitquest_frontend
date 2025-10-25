@@ -9,6 +9,8 @@ class Quest {
   final int? duration;
   final int? totalReps;
   final double? totalWeight;
+  final int? exercisesCount; // Total exercises linked to quest
+  final int? completedExercisesCount; // Exercises that are completed
 
   Quest({
     required this.id,
@@ -21,6 +23,8 @@ class Quest {
     this.duration,
     this.totalReps,
     this.totalWeight,
+    this.exercisesCount,
+    this.completedExercisesCount,
   });
 
   factory Quest.fromJson(Map<String, dynamic> json) {
@@ -68,6 +72,8 @@ class Quest {
         duration: json['duration'] as int?,
         totalReps: json['totalReps'] as int?,
         totalWeight: (json['totalWeight'] as num?)?.toDouble(),
+        exercisesCount: json['exercisesCount'] as int?,
+        completedExercisesCount: json['completedExercisesCount'] as int?,
       );
     } catch (e) {
       print('Quest.fromJson: Error parsing quest: $e');

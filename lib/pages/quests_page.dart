@@ -429,6 +429,52 @@ class _QuestListItem extends StatelessWidget {
     return '${mins}m';
   }
 
+  Widget _buildProgressBar() {
+    final completed = quest.completedExercisesCount ?? 0;
+    final total = quest.exercisesCount ?? 0;
+    final progress = total > 0 ? completed / total : 0.0;
+    final progressPercent = (progress * 100).toInt();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Exercises Progress',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Text(
+              '$completed/$total ($progressPercent%)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: Colors.grey[700],
+            valueColor: AlwaysStoppedAnimation<Color>(
+              progress == 1.0 ? const Color(0xFF00FF99) : Colors.blue,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -503,6 +549,14 @@ class _QuestListItem extends StatelessWidget {
                   ),
                 ],
               ),
+
+              // Progress Bar
+              if (quest.exercisesCount != null &&
+                  quest.exercisesCount! > 0) ...[
+                const SizedBox(height: 12),
+                _buildProgressBar(),
+              ],
+
               if (quest.dueDate != null) ...[
                 const SizedBox(height: 8),
                 Row(
