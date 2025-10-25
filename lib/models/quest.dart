@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class Quest {
   final int id;
   final String title;
@@ -11,6 +13,11 @@ class Quest {
   final double? totalWeight;
   final int? exercisesCount; // Total exercises linked to quest
   final int? completedExercisesCount; // Exercises that are completed
+  // Optional target metrics for computing progress by totals
+  final Map<String, dynamic>? targetMetrics;
+  final int? targetReps;
+  final double? targetWeight;
+  final int? targetDuration; // seconds
 
   Quest({
     required this.id,
@@ -25,6 +32,10 @@ class Quest {
     this.totalWeight,
     this.exercisesCount,
     this.completedExercisesCount,
+    this.targetMetrics,
+    this.targetReps,
+    this.targetWeight,
+    this.targetDuration,
   });
 
   factory Quest.fromJson(Map<String, dynamic> json) {
@@ -61,6 +72,61 @@ class Quest {
         priorityString = json['priority'] as String? ?? 'Medium';
       }
 
+      // Parse optional target metrics if present (support multiple casings/keys)
+      Map<String, dynamic>? metrics;
+      final rawMetrics = json['targetMetrics'] ?? json['TargetMetrics'];
+      if (rawMetrics is Map<String, dynamic>) {
+        metrics = rawMetrics;
+      } else if (rawMetrics is String) {
+        try {
+          metrics = jsonDecode(rawMetrics) as Map<String, dynamic>;
+        } catch (_) {
+          metrics = null;
+        }
+      }
+
+      // Helper to extract numeric target values from metrics or direct fields
+      int? _asInt(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is double) return v.toInt();
+        if (v is String) {
+          final p = int.tryParse(v);
+          return p;
+        }
+        return null;
+      }
+
+      double? _asDouble(dynamic v) {
+        if (v == null) return null;
+        if (v is double) return v;
+        if (v is int) return v.toDouble();
+        if (v is String) return double.tryParse(v);
+        return null;
+      }
+
+      final targetReps = _asInt(
+        json['targetReps'] ??
+            json['TargetReps'] ??
+            metrics?['targetReps'] ??
+            metrics?['reps'] ??
+            metrics?['totalReps'],
+      );
+      final targetWeight = _asDouble(
+        json['targetWeight'] ??
+            json['TargetWeight'] ??
+            metrics?['targetWeight'] ??
+            metrics?['weight'] ??
+            metrics?['totalWeight'],
+      );
+      final targetDuration = _asInt(
+        json['targetDuration'] ??
+            json['TargetDuration'] ??
+            metrics?['targetDuration'] ??
+            metrics?['duration'] ??
+            metrics?['totalDurationSeconds'],
+      );
+
       return Quest(
         id: id,
         title: json['title'] as String? ?? '',
@@ -74,6 +140,10 @@ class Quest {
         totalWeight: (json['totalWeight'] as num?)?.toDouble(),
         exercisesCount: json['exercisesCount'] as int?,
         completedExercisesCount: json['completedExercisesCount'] as int?,
+        targetMetrics: metrics,
+        targetReps: targetReps,
+        targetWeight: targetWeight,
+        targetDuration: targetDuration,
       );
     } catch (e) {
       print('Quest.fromJson: Error parsing quest: $e');
@@ -93,6 +163,10 @@ class Quest {
       'duration': duration,
       'totalReps': totalReps,
       'totalWeight': totalWeight,
+      'targetMetrics': targetMetrics,
+      'targetReps': targetReps,
+      'targetWeight': targetWeight,
+      'targetDuration': targetDuration,
     };
   }
 }
