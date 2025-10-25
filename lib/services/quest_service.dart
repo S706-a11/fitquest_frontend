@@ -257,7 +257,7 @@ class QuestService {
   static Future<Map<String, dynamic>> addExerciseToQuest({
     required String userId,
     required int questId,
-    required int exerciseId,
+    required String exerciseId, // UUID string
   }) async {
     // Use the simplified endpoint with exerciseIds array
     final response = await http.post(
@@ -274,7 +274,7 @@ class QuestService {
   static Future<void> removeExerciseFromQuest({
     required String userId,
     required int questId,
-    required int exerciseId,
+    required String exerciseId, // UUID string
   }) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/quests/$questId/exercises/$exerciseId'),
