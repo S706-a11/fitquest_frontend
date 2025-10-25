@@ -11,6 +11,7 @@ class Quest {
   final int? duration;
   final int? totalReps;
   final double? totalWeight;
+  final int? totalSets;
   final int? exercisesCount; // Total exercises linked to quest
   final int? completedExercisesCount; // Exercises that are completed
   // Optional target metrics for computing progress by totals
@@ -18,6 +19,7 @@ class Quest {
   final int? targetReps;
   final double? targetWeight;
   final int? targetDuration; // seconds
+  final int? targetSets;
   // Optional filters to determine which exercises count toward progress
   final List<int>? targetExerciseTypeIds;
   final List<String>? includeNameContains;
@@ -33,12 +35,14 @@ class Quest {
     this.duration,
     this.totalReps,
     this.totalWeight,
+    this.totalSets,
     this.exercisesCount,
     this.completedExercisesCount,
     this.targetMetrics,
     this.targetReps,
     this.targetWeight,
     this.targetDuration,
+    this.targetSets,
     this.targetExerciseTypeIds,
     this.includeNameContains,
   });
@@ -153,6 +157,13 @@ class Quest {
             metrics?['totalWeight'],
       );
       final targetDuration = _durationSecondsFrom(json, metrics);
+      final targetSets = _asInt(
+        json['targetSets'] ??
+            json['TargetSets'] ??
+            metrics?['targetSets'] ??
+            metrics?['sets'] ??
+            metrics?['totalSets'],
+      );
 
       // Parse optional filters
       List<int>? _asIntList(dynamic v) {
@@ -215,12 +226,14 @@ class Quest {
         duration: json['duration'] as int?,
         totalReps: json['totalReps'] as int?,
         totalWeight: (json['totalWeight'] as num?)?.toDouble(),
+        totalSets: json['totalSets'] as int?,
         exercisesCount: json['exercisesCount'] as int?,
         completedExercisesCount: json['completedExercisesCount'] as int?,
         targetMetrics: metrics,
         targetReps: targetReps,
         targetWeight: targetWeight,
         targetDuration: targetDuration,
+        targetSets: targetSets,
         targetExerciseTypeIds: targetExerciseTypeIds,
         includeNameContains: includeNameContains,
       );
@@ -242,10 +255,12 @@ class Quest {
       'duration': duration,
       'totalReps': totalReps,
       'totalWeight': totalWeight,
+      'totalSets': totalSets,
       'targetMetrics': targetMetrics,
       'targetReps': targetReps,
       'targetWeight': targetWeight,
       'targetDuration': targetDuration,
+      'targetSets': targetSets,
       'targetExerciseTypeIds': targetExerciseTypeIds,
       'includeNameContains': includeNameContains,
     };

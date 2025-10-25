@@ -133,6 +133,26 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     return d;
   }
 
+  int? _getSets(Map<String, dynamic> ex) {
+    // Prefer explicit sets field
+    final raw = _getAny(ex, const ['sets', 'Sets', 'totalSets', 'TotalSets']);
+    int? sets = _asInt(raw);
+    if ((sets == null || sets <= 0)) {
+      // Try to derive from totalReps and repsPerSet if available
+      final repsTotal = _getTotalReps(ex);
+      final repsPerSet = _asInt(
+        _getAny(ex, const ['repsPerSet', 'RepsPerSet', 'reps']),
+      );
+      if (repsTotal != null && repsPerSet != null && repsPerSet > 0) {
+        final derived = repsTotal / repsPerSet;
+        if (derived.isFinite) {
+          sets = derived.round();
+        }
+      }
+    }
+    return sets;
+  }
+
   // Compute quest progress [0..1] using target metrics when available,
   // otherwise fall back to completed exercises ratio.
   double _computeProgressRatio() {
@@ -211,6 +231,29 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     final targetDuration = _quest!.targetDuration;
     if (duration != null && targetDuration != null && targetDuration > 0) {
       parts.add((duration / targetDuration).clamp(0.0, 1.0));
+    }
+
+    // By totals: sets
+    int? _aggTotalSets() {
+      if (_quest!.totalSets != null) return _quest!.totalSets;
+      int sum = 0;
+      bool any = false;
+      for (final raw in _exercises) {
+        final ex = raw as Map<String, dynamic>;
+        if (!_includeExercise(ex)) continue;
+        final s = _getSets(ex);
+        if (s != null && s > 0) {
+          sum += s;
+          any = true;
+        }
+      }
+      return any ? sum : null;
+    }
+
+    final totalSets = _aggTotalSets();
+    final targetSets = _quest!.targetSets;
+    if (totalSets != null && targetSets != null && targetSets > 0) {
+      parts.add((totalSets / targetSets).clamp(0.0, 1.0));
     }
 
     if (parts.isNotEmpty) {
@@ -759,6 +802,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                   int? aggReps;
                                   double? aggWeight;
                                   int? aggDuration;
+                                  int? aggSets;
                                   // compute using same helpers as ratio
                                   {
                                     int sumReps = 0;
@@ -808,6 +852,22 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                     aggDuration =
                                         _quest!.duration ??
                                         (anyD ? sumD : null);
+
+                                    int sumS = 0;
+                                    bool anyS = false;
+                                    for (final raw in _exercises) {
+                                      final ex = raw as Map<String, dynamic>;
+                                      if (!_includeExerciseForQuestFilters(ex))
+                                        continue;
+                                      final s = _getSets(ex);
+                                      if (s != null && s > 0) {
+                                        sumS += s;
+                                        anyS = true;
+                                      }
+                                    }
+                                    aggSets =
+                                        _quest!.totalSets ??
+                                        (anyS ? sumS : null);
                                   }
 
                                   return Row(
@@ -819,6 +879,12 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                         'Duration',
                                         _formatDuration(aggDuration),
                                         Icons.timer,
+                                      ),
+                                      _buildStatColumn(
+                                        context,
+                                        'Total Sets',
+                                        '${aggSets ?? 0}',
+                                        Icons.view_array,
                                       ),
                                       _buildStatColumn(
                                         context,
@@ -950,6 +1016,20 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                     const SizedBox(height: 4),
                                     Row(
                                       children: [
+                                        const Icon(
+                                          Icons.view_array,
+                                          size: 14,
+                                          color: Colors.grey,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Sets: ${_getSets(exercise) ?? 0}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[700],
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
                                         const Icon(
                                           Icons.fitness_center,
                                           size: 14,
