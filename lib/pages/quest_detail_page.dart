@@ -20,6 +20,47 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   List<dynamic> _exercises = [];
   bool _isLoading = true;
 
+  // Compute quest progress [0..1] using target metrics when available,
+  // otherwise fall back to completed exercises ratio.
+  double _computeProgressRatio() {
+    if (_quest == null) return 0.0;
+
+    final List<double> parts = [];
+
+    // By totals: reps
+    final totalReps = _quest!.totalReps;
+    final targetReps = _quest!.targetReps;
+    if (totalReps != null && targetReps != null && targetReps > 0) {
+      parts.add((totalReps / targetReps).clamp(0.0, 1.0));
+    }
+
+    // By totals: weight
+    final totalWeight = _quest!.totalWeight;
+    final targetWeight = _quest!.targetWeight;
+    if (totalWeight != null && targetWeight != null && targetWeight > 0) {
+      parts.add((totalWeight / targetWeight).clamp(0.0, 1.0));
+    }
+
+    // By totals: duration (seconds)
+    final duration = _quest!.duration;
+    final targetDuration = _quest!.targetDuration;
+    if (duration != null && targetDuration != null && targetDuration > 0) {
+      parts.add((duration / targetDuration).clamp(0.0, 1.0));
+    }
+
+    if (parts.isNotEmpty) {
+      // Use the average of available metrics
+      final avg = parts.reduce((a, b) => a + b) / parts.length;
+      return avg.clamp(0.0, 1.0);
+    }
+
+    // Fallback: ratio of completed exercises
+    final totalCount = _exercises.length;
+    if (totalCount == 0) return 0.0;
+    final completedCount = _exercises.where((ex) => ex['endAt'] != null).length;
+    return (completedCount / totalCount).clamp(0.0, 1.0);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -64,15 +105,13 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   Future<void> _checkAndAutoCompleteQuest() async {
     if (_quest == null || _quest!.isCompleted) return;
 
-    // Check if there are exercises and all are completed
-    if (_exercises.isEmpty) return;
+    // Compute progress (by targets if available, else by completed exercises)
+    final ratio = _computeProgressRatio();
+    final progressPercent = (ratio * 100).toInt();
+    print('Auto-complete check: progress=$progressPercent%');
 
-    final completedCount = _exercises.where((ex) => ex['endAt'] != null).length;
-    final totalCount = _exercises.length;
-
-    // If all exercises are completed and quest is not yet marked complete
-    if (completedCount == totalCount && completedCount > 0) {
-      print('All exercises completed! Auto-completing quest...');
+    if (ratio >= 1.0) {
+      print('Progress reached 100%! Auto-completing quest...');
 
       final userProvider = context.read<UserProvider>();
       final userId = userProvider.user?.id;
@@ -132,37 +171,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     }
   }
 
-  Future<void> _toggleQuestStatus() async {
-    if (_quest == null) return;
-
-    final userProvider = context.read<UserProvider>();
-    final userId = userProvider.user?.id;
-    if (userId == null) return;
-
-    try {
-      // Toggle to the opposite of current status
-      final newStatus = !_quest!.isCompleted;
-
-      await QuestService.toggleQuestStatus(
-        userId: userId,
-        questId: widget.questId,
-        completed: newStatus,
-      );
-      await _loadQuestDetails();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            newStatus ? 'Quest completed!' : 'Quest marked as active',
-          ),
-        ),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update quest status: $e')),
-      );
-    }
-  }
+  // Manual toggle removed; quest completes automatically based on progress.
 
   Future<void> _deleteQuest() async {
     final userProvider = context.read<UserProvider>();
@@ -357,24 +366,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   }
 
   Widget _buildProgressSection() {
-    // Count completed exercises (those with endAt timestamp)
-    final completedCount = _exercises.where((ex) => ex['endAt'] != null).length;
-    final totalCount = _exercises.length;
-    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
-    final progressPercent = (progress * 100).toInt();
+    final ratio = _computeProgressRatio();
+    final progressPercent = (ratio * 100).toInt();
 
-    print('📊 Progress calculation:');
-    print('   Total exercises: $totalCount');
-    print('   Completed exercises: $completedCount');
-    print('   Progress: $progressPercent%');
-
-    // Debug: Print each exercise's completion status
-    for (var i = 0; i < _exercises.length; i++) {
-      final ex = _exercises[i];
-      print(
-        '   Exercise ${i + 1}: ${ex['exerciseTypeName']} - endAt: ${ex['endAt']}',
-      );
-    }
+    print('📊 Progress calculation: $progressPercent%');
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -389,7 +384,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             Text(
-              '$completedCount / $totalCount exercises ($progressPercent%)',
+              '$progressPercent%',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
                 fontWeight: FontWeight.w500,
@@ -401,11 +396,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: LinearProgressIndicator(
-            value: progress,
+            value: ratio,
             minHeight: 12,
             backgroundColor: Colors.grey[300],
             valueColor: AlwaysStoppedAnimation<Color>(
-              progress == 1.0 ? Colors.green : Colors.blue,
+              ratio == 1.0 ? Colors.green : Colors.blue,
             ),
           ),
         ),
@@ -759,30 +754,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
                       const SizedBox(height: 24),
 
-                      // Toggle Complete Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: _toggleQuestStatus,
-                          icon: Icon(
-                            _quest!.isCompleted
-                                ? Icons.replay
-                                : Icons.check_circle,
-                          ),
-                          label: Text(
-                            _quest!.isCompleted
-                                ? 'Mark as Active'
-                                : 'Complete Quest',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                _quest!.isCompleted
-                                    ? Colors.orange
-                                    : Colors.green,
-                            padding: const EdgeInsets.all(16),
-                          ),
-                        ),
-                      ),
+                      // Manual completion removed; quest auto-completes at 100% progress.
                     ],
                   ),
                 ),

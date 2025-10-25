@@ -82,9 +82,12 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     }
 
     try {
-      print('Loading exercises for user: $userId');
-      final exercises = await ExerciseService.getUserExercises(userId);
-      print('Loaded ${exercises.length} exercises');
+      print('Loading exercises for quest: ${widget.questId} (user: $userId)');
+      final exercises = await QuestService.getQuestExercises(
+        userId: userId,
+        questId: widget.questId,
+      );
+      print('Loaded ${exercises.length} quest exercises');
 
       // Debug: Print each exercise to see which one has the issue
       for (var i = 0; i < exercises.length; i++) {
@@ -120,109 +123,21 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
       } else {
         _filteredExercises =
             _allExercises.where((exercise) {
+              final typeName =
+                  (exercise['exerciseTypeName'] as String?)?.toLowerCase() ??
+                  '';
+              final note = (exercise['note'] as String?)?.toLowerCase() ?? '';
               final name = (exercise['name'] as String?)?.toLowerCase() ?? '';
-              final description =
-                  (exercise['description'] as String?)?.toLowerCase() ?? '';
               final searchLower = query.toLowerCase();
-              return name.contains(searchLower) ||
-                  description.contains(searchLower);
+              return typeName.contains(searchLower) ||
+                  note.contains(searchLower) ||
+                  name.contains(searchLower);
             }).toList();
       }
     });
   }
 
-  Future<void> _linkExercises() async {
-    if (_selectedExerciseIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one exercise')),
-      );
-      return;
-    }
-
-    final userProvider = context.read<UserProvider>();
-    final userId = userProvider.user?.id;
-    if (userId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: User not logged in')),
-      );
-      return;
-    }
-
-    // Show loading dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder:
-          (context) => const Center(
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Linking exercises...'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-    );
-
-    try {
-      print(
-        'Linking ${_selectedExerciseIds.length} exercises to quest ${widget.questId}',
-      );
-
-      // Link each selected exercise
-      for (final exerciseId in _selectedExerciseIds) {
-        print('Linking exercise $exerciseId to quest ${widget.questId}');
-        await QuestService.addExerciseToQuest(
-          userId: userId,
-          questId: widget.questId,
-          exerciseId: exerciseId,
-        );
-      }
-
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      // Close this page and return success
-      if (mounted) {
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${_selectedExerciseIds.length} exercise(s) linked successfully!',
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e) {
-      print('Error linking exercises: $e');
-
-      // Close loading dialog
-      if (mounted) Navigator.pop(context);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to link exercises: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: _linkExercises,
-            ),
-          ),
-        );
-      }
-    }
-  }
+  // Linking existing exercises is disabled to ensure exercises are unique per quest.
 
   Future<void> _showCreateExerciseDialog() async {
     if (_exerciseTypes.isEmpty) {
@@ -245,8 +160,24 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
 
     if (selectedExerciseType == null) return;
 
+    final selectedTypeId = selectedExerciseType['id'] as int;
+    // Prevent duplicates: only one exercise per type in a quest
+    final exists = _allExercises.any(
+      (ex) => (ex['exerciseTypeId'] as int?) == selectedTypeId,
+    );
+    if (exists) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This exercise type is already in this quest.'),
+          ),
+        );
+      }
+      return;
+    }
+
     // Create exercise immediately with minimal info (details will be set at completion)
-    await _createExercise(selectedExerciseType['id'] as int);
+    await _createExercise(selectedTypeId);
   }
 
   Future<void> _createExercise(int exerciseTypeId) async {
@@ -266,9 +197,10 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
 
     try {
       print('Calling ExerciseService.createExercise...');
-      final created = await ExerciseService.createExercise(
+      await ExerciseService.createExercise(
         userId: userId,
         exerciseTypeId: exerciseTypeId,
+        questId: widget.questId,
       );
       print('Exercise created successfully!');
 
@@ -281,13 +213,9 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
         );
       }
 
-      // Reload and auto-select the newly created exercise if ID is present
-      await _loadExercises();
-      final newId = created['id'] as String?;
-      if (newId != null) {
-        setState(() {
-          _selectedExerciseIds.add(newId);
-        });
+      // Since exercises should be unique per quest, return to the quest page to refresh
+      if (mounted) {
+        Navigator.pop(context, true);
       }
     } catch (e, stackTrace) {
       print('ERROR creating exercise: $e');
@@ -370,15 +298,11 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
       appBar: AppBar(
         title: const Text('Link Exercises'),
         actions: [
-          if (_selectedExerciseIds.isNotEmpty)
-            TextButton.icon(
-              onPressed: _linkExercises,
-              icon: const Icon(Icons.check, color: Colors.white),
-              label: Text(
-                'Link (${_selectedExerciseIds.length})',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
+          IconButton(
+            tooltip: 'Reuse from your exercises',
+            icon: const Icon(Icons.replay),
+            onPressed: _reuseFromHistory,
+          ),
         ],
       ),
       body: Column(
@@ -472,18 +396,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                           elevation: isSelected ? 4 : 1,
                           color: isSelected ? Colors.blue[50] : null,
                           child: ListTile(
-                            leading: Checkbox(
-                              value: isSelected,
-                              onChanged: (selected) {
-                                setState(() {
-                                  if (selected == true) {
-                                    _selectedExerciseIds.add(exerciseId);
-                                  } else {
-                                    _selectedExerciseIds.remove(exerciseId);
-                                  }
-                                });
-                              },
-                            ),
+                            leading: const Icon(Icons.fitness_center),
                             title: Text(
                               exercise['exerciseTypeName'] ??
                                   exercise['name'] ??
@@ -512,19 +425,300 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
           ),
         ],
       ),
-      floatingActionButton:
-          _selectedExerciseIds.isNotEmpty
-              ? FloatingActionButton.extended(
-                onPressed: _linkExercises,
-                icon: const Icon(Icons.link),
-                label: Text('Link ${_selectedExerciseIds.length} Exercise(s)'),
-              )
-              : FloatingActionButton.extended(
-                onPressed: _showCreateExerciseDialog,
-                icon: const Icon(Icons.add),
-                label: const Text('Create Exercise'),
-                backgroundColor: Colors.green,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showCreateExerciseDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Create Exercise'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // Opens a selection dialog to pick from user's past exercises and clones
+  // them into this quest (creating unique records per quest).
+  Future<void> _reuseFromHistory() async {
+    final userProvider = context.read<UserProvider>();
+    final userId = userProvider.user?.id;
+    if (userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error: User not logged in')),
+      );
+      return;
+    }
+
+    try {
+      // Load user's exercises for selection
+      final all = await ExerciseService.getUserExercises(userId);
+      final selected = await _showReuseDialog(all);
+      if (selected == null || selected.isEmpty) return;
+
+      // Show progress dialog
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder:
+            (context) => const Center(
+              child: Card(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text('Reusing exercises...'),
+                    ],
+                  ),
+                ),
               ),
+            ),
+      );
+
+      // Prevent duplicates: ensure only one exercise per type in this quest
+      final Set<int> existingTypeIds =
+          _allExercises
+              .map((ex) => ex['exerciseTypeId'] as int?)
+              .whereType<int>()
+              .toSet();
+      final Set<int> createdTypeIds = {};
+      int createdCount = 0;
+      int skippedCount = 0;
+
+      for (final ex in selected) {
+        final typeId = ex['exerciseTypeId'] as int?;
+        if (typeId == null) {
+          skippedCount++;
+          continue;
+        }
+        if (existingTypeIds.contains(typeId) ||
+            createdTypeIds.contains(typeId)) {
+          skippedCount++;
+          continue;
+        }
+        await ExerciseService.createExercise(
+          userId: userId,
+          exerciseTypeId: typeId,
+          questId: widget.questId,
+          // Copy common planning fields if present
+          sets: (ex['sets'] as int?),
+          repsPerSet: (ex['repsPerSet'] as int?),
+          weightKg: (ex['weightKg'] as num?)?.toDouble(),
+          note: (ex['note'] as String?),
+        );
+        createdTypeIds.add(typeId);
+        createdCount++;
+      }
+
+      if (!mounted) return;
+      Navigator.of(context).pop(); // close progress dialog
+      Navigator.of(context).pop(true); // close page, trigger refresh
+      final msg =
+          skippedCount > 0
+              ? '$createdCount reused, $skippedCount skipped (already in quest)'
+              : '$createdCount exercise(s) reused into this quest';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).maybePop(); // close progress dialog if open
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to reuse exercises: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> _showReuseDialog(
+    List<dynamic> userExercises,
+  ) async {
+    return showDialog<List<Map<String, dynamic>>>(
+      context: context,
+      builder: (context) {
+        final searchCtrl = TextEditingController();
+        final Set<int> selectedTypeIds = {};
+        // Build a list containing only one representative per exerciseTypeId
+        List<Map<String, dynamic>> _buildUniqueByType(List<dynamic> all) {
+          final Map<int, Map<String, dynamic>> best = {};
+          DateTime? _parseDt(dynamic v) {
+            if (v == null) return null;
+            if (v is String) {
+              try {
+                return DateTime.parse(v);
+              } catch (_) {
+                return null;
+              }
+            }
+            return null;
+          }
+
+          for (final raw in all) {
+            if (raw is! Map<String, dynamic>) continue;
+            final int? typeId = raw['exerciseTypeId'] as int?;
+            if (typeId == null) continue;
+            if (!best.containsKey(typeId)) {
+              best[typeId] = raw;
+            } else {
+              final cur = best[typeId]!;
+              // Prefer the most recent by endAt, then startAt
+              final curEnd = _parseDt(cur['endAt']);
+              final rawEnd = _parseDt(raw['endAt']);
+              if (curEnd != null || rawEnd != null) {
+                if (curEnd == null ||
+                    (rawEnd != null && rawEnd.isAfter(curEnd))) {
+                  best[typeId] = raw;
+                  continue;
+                }
+              }
+              final curStart = _parseDt(cur['startAt']);
+              final rawStart = _parseDt(raw['startAt']);
+              if (curStart != null || rawStart != null) {
+                if (curStart == null ||
+                    (rawStart != null && rawStart.isAfter(curStart))) {
+                  best[typeId] = raw;
+                }
+              }
+            }
+          }
+          return best.values.toList();
+        }
+
+        final List<Map<String, dynamic>> baseList = _buildUniqueByType(
+          userExercises,
+        );
+        List<Map<String, dynamic>> filtered = List<Map<String, dynamic>>.from(
+          baseList,
+        );
+        // Existing typeIds in this quest (to prevent duplicates)
+        final Set<int> existingTypeIds =
+            _allExercises
+                .map((ex) => ex['exerciseTypeId'] as int?)
+                .whereType<int>()
+                .toSet();
+
+        void applyFilter(String q) {
+          final ql = q.toLowerCase();
+          filtered =
+              baseList.where((ex) {
+                final typeName =
+                    (ex['exerciseTypeName'] as String?)?.toLowerCase() ?? '';
+                final note = (ex['note'] as String?)?.toLowerCase() ?? '';
+                final name = (ex['name'] as String?)?.toLowerCase() ?? '';
+                return typeName.contains(ql) ||
+                    note.contains(ql) ||
+                    name.contains(ql);
+              }).toList();
+        }
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Reuse from your exercises'),
+              content: SizedBox(
+                width: 520,
+                height: 480,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: searchCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Search...',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged:
+                          (q) => setState(() {
+                            applyFilter(q);
+                          }),
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) {
+                          final ex = filtered[index];
+                          final title =
+                              ex['exerciseTypeName'] ??
+                              ex['name'] ??
+                              'Exercise';
+                          final subtitle = ex['note'] as String?;
+                          final typeId = ex['exerciseTypeId'] as int?;
+                          final isDisabled =
+                              typeId != null &&
+                              existingTypeIds.contains(typeId);
+                          final checked =
+                              typeId != null &&
+                              selectedTypeIds.contains(typeId);
+                          return Opacity(
+                            opacity: isDisabled ? 0.6 : 1.0,
+                            child: CheckboxListTile(
+                              value: checked && !isDisabled,
+                              onChanged:
+                                  isDisabled
+                                      ? null
+                                      : (v) => setState(() {
+                                        if (typeId == null) return;
+                                        if (v == true) {
+                                          selectedTypeIds.add(typeId);
+                                        } else {
+                                          selectedTypeIds.remove(typeId);
+                                        }
+                                      }),
+                              title: Text(title.toString()),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (subtitle != null && subtitle.isNotEmpty)
+                                    Text(subtitle),
+                                  if (isDisabled)
+                                    const Text(
+                                      'Already added to this quest',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.redAccent,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  onPressed:
+                      selectedTypeIds.isEmpty
+                          ? null
+                          : () {
+                            final chosen =
+                                baseList
+                                    .where(
+                                      (ex) => selectedTypeIds.contains(
+                                        ex['exerciseTypeId'] as int? ?? -1,
+                                      ),
+                                    )
+                                    .toList();
+                            Navigator.of(context).pop(chosen);
+                          },
+                  icon: const Icon(Icons.replay),
+                  label: Text('Reuse (${selectedTypeIds.length})'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
