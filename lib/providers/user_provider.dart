@@ -142,25 +142,30 @@ class UserProvider with ChangeNotifier {
     if (_user == null) return;
 
     try {
-      final newXp = _user!.xp + xpAmount;
-      int newLevel = _user!.level;
-      int remainingXp = newXp;
-
-      // Level up logic
-      while (remainingXp >= newLevel * 100) {
-        remainingXp -= newLevel * 100;
-        newLevel++;
-      }
-
-      // await UserService.updateUser(
-      //   userId: _user!.id,
-      //   level: newLevel,
-      //   xp: remainingXp,
-      // );
-
+      // Prefer backend to award XP and handle level-ups atomically
+      await UserService.addXp(userId: _user!.id, xpAmount: xpAmount);
       await refreshUser();
     } catch (e) {
       print('Error updating XP: $e');
     }
+  }
+
+  // Ensure user is not over-cap on XP; if XP >= level*100, let backend normalize
+  // by calling addXp with 0 (no-op award that should trigger re-evaluation server-side).
+  // Returns true if a level-up occurred.
+  Future<bool> ensureLevelConsistency() async {
+    if (_user == null) return false;
+    try {
+      final beforeLevel = _user!.level;
+      final cap = beforeLevel * 100;
+      if (_user!.xp >= cap) {
+        await UserService.addXp(userId: _user!.id, xpAmount: 0);
+        await refreshUser();
+        return _user!.level > beforeLevel;
+      }
+    } catch (e) {
+      print('ensureLevelConsistency error: $e');
+    }
+    return false;
   }
 }
