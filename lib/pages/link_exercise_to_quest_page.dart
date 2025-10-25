@@ -761,9 +761,10 @@ class _ExerciseTypeSelectionDialogState
       if (t is Map) {
         final name = (t['name']?.toString() ?? '').trim().toLowerCase();
         final id = (t['id']?.toString() ?? '').trim();
-        final key = name.isNotEmpty
-            ? 'name:$name'
-            : (id.isNotEmpty ? 'id:$id' : 'obj:${t.hashCode}');
+        final key =
+            name.isNotEmpty
+                ? 'name:$name'
+                : (id.isNotEmpty ? 'id:$id' : 'obj:${t.hashCode}');
         if (keys.add(key)) unique.add(t);
       } else {
         // Non-map entries should be rare; include once
@@ -860,7 +861,9 @@ class _ExerciseTypeSelectionDialogState
 
     // 3) Heuristic based on name keywords
     final name = type['name']?.toString().toLowerCase() ?? '';
-    if (name.contains('yoga') || name.contains('stretch') || name.contains('mobility')) {
+    if (name.contains('yoga') ||
+        name.contains('stretch') ||
+        name.contains('mobility')) {
       return 'Flexibility';
     }
 
