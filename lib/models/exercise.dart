@@ -1,53 +1,61 @@
 /// Model class for Exercise
 class Exercise {
-  final int id;
-  final String userId;
-  final String name;
-  final String exerciseType;
-  final String? description;
-  final int? duration; // in seconds
-  final double? distance; // in meters
-  final int? reps;
-  final double? weight; // in kg
-  final int? calories;
-  final DateTime createdAt;
-  final DateTime? updatedAt;
+  final String id; // UUID
+  final String userId; // UUID
+  final int exerciseTypeId;
+  final String exerciseTypeName;
+  final int? sets;
+  final int? repsPerSet;
+  final double? weightKg;
+  final String? note;
+  final DateTime startAt;
+  final DateTime? endAt;
+  final int? questId;
+  final int? totalReps; // Auto-calculated by backend
+  final double? totalWeight; // Auto-calculated by backend
+  final int? duration; // Auto-calculated by backend (seconds)
 
   const Exercise({
     required this.id,
     required this.userId,
-    required this.name,
-    required this.exerciseType,
-    this.description,
+    required this.exerciseTypeId,
+    required this.exerciseTypeName,
+    this.sets,
+    this.repsPerSet,
+    this.weightKg,
+    this.note,
+    required this.startAt,
+    this.endAt,
+    this.questId,
+    this.totalReps,
+    this.totalWeight,
     this.duration,
-    this.distance,
-    this.reps,
-    this.weight,
-    this.calories,
-    required this.createdAt,
-    this.updatedAt,
   });
+
+  bool get isCompleted => endAt != null;
 
   factory Exercise.fromJson(Map<String, dynamic> json) {
     return Exercise(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] as String? ?? '',
       userId: json['userId'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      exerciseType: json['exerciseType'] as String? ?? 'general',
-      description: json['description'] as String?,
-      duration: json['duration'] as int?,
-      distance: (json['distance'] as num?)?.toDouble(),
-      reps: json['reps'] as int?,
-      weight: (json['weight'] as num?)?.toDouble(),
-      calories: json['calories'] as int?,
-      createdAt:
-          json['createdAt'] != null
-              ? DateTime.parse(json['createdAt'] as String)
+      exerciseTypeId: json['exerciseTypeId'] as int? ?? 0,
+      exerciseTypeName: json['exerciseTypeName'] as String? ?? 'Unknown',
+      sets: json['sets'] as int?,
+      repsPerSet: json['repsPerSet'] as int?,
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
+      note: json['note'] as String?,
+      startAt:
+          json['startAt'] != null
+              ? DateTime.parse(json['startAt'] as String)
               : DateTime.now(),
-      updatedAt:
-          json['updatedAt'] != null
-              ? DateTime.parse(json['updatedAt'] as String)
+      endAt:
+          json['endAt'] != null
+              ? DateTime.parse(json['endAt'] as String)
               : null,
+      questId: json['questId'] as int?,
+      totalReps: json['totalReps'] as int?,
+      totalWeight: (json['totalWeight'] as num?)?.toDouble(),
+      duration: json['duration'] as int?,
     );
   }
 
@@ -55,16 +63,18 @@ class Exercise {
     return {
       'id': id,
       'userId': userId,
-      'name': name,
-      'exerciseType': exerciseType,
-      'description': description,
+      'exerciseTypeId': exerciseTypeId,
+      'exerciseTypeName': exerciseTypeName,
+      'sets': sets,
+      'repsPerSet': repsPerSet,
+      'weightKg': weightKg,
+      'note': note,
+      'startAt': startAt.toIso8601String(),
+      'endAt': endAt?.toIso8601String(),
+      'questId': questId,
+      'totalReps': totalReps,
+      'totalWeight': totalWeight,
       'duration': duration,
-      'distance': distance,
-      'reps': reps,
-      'weight': weight,
-      'calories': calories,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt?.toIso8601String(),
     };
   }
 
@@ -76,17 +86,24 @@ class Exercise {
     return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  /// Get formatted distance (km)
-  String getFormattedDistance() {
-    if (distance == null) return '0.0 km';
-    final km = distance! / 1000;
-    return '${km.toStringAsFixed(2)} km';
-  }
-
   /// Get formatted weight
   String getFormattedWeight() {
-    if (weight == null) return '0 kg';
-    return '${weight!.toStringAsFixed(1)} kg';
+    if (weightKg == null) return '0 kg';
+    return '${weightKg!.toStringAsFixed(1)} kg';
+  }
+
+  /// Get formatted total weight
+  String getFormattedTotalWeight() {
+    if (totalWeight == null) return '0 kg';
+    return '${totalWeight!.toStringAsFixed(1)} kg';
+  }
+
+  /// Get completion summary
+  String getCompletionSummary() {
+    if (!isCompleted) {
+      return 'Planned: ${sets ?? 0} sets × ${repsPerSet ?? 0} reps @ ${weightKg ?? 0} kg';
+    }
+    return 'Completed: ${totalReps ?? 0} total reps, ${getFormattedTotalWeight()}';
   }
 }
 

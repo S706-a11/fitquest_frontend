@@ -85,8 +85,8 @@ class ExerciseService {
       if (repsPerSet != null) 'repsPerSet': repsPerSet,
       if (sets != null) 'sets': sets,
       if (weightKg != null) 'weightKg': weightKg,
-      if (startAt != null) 'startAt': startAt.toIso8601String(),
-      if (endAt != null) 'endAt': endAt.toIso8601String(),
+      if (startAt != null) 'startAt': startAt.toUtc().toIso8601String(),
+      if (endAt != null) 'endAt': endAt.toUtc().toIso8601String(),
       if (questId != null) 'questId': questId,
     };
 
@@ -164,6 +164,68 @@ class ExerciseService {
     print('Exercise deleted successfully');
   }
 
+  /// Complete an exercise by setting endAt timestamp and optionally updating details
+  /// You can pass sets, repsPerSet, weightKg, note to update those fields at completion time.
+  /// Backend will auto-calculate totalReps, totalWeight, and duration.
+  static Future<Map<String, dynamic>> completeExercise({
+    required String exerciseId,
+    int? sets,
+    int? repsPerSet,
+    double? weightKg,
+    String? note,
+  }) async {
+    print('=== completeExercise DEBUG ===');
+    print('Completing exerciseId: $exerciseId');
+
+    // Build payload with endAt and any provided detail fields
+    final payload = <String, dynamic>{
+      'endAt': DateTime.now().toUtc().toIso8601String(),
+      if (sets != null) 'sets': sets,
+      if (repsPerSet != null) 'repsPerSet': repsPerSet,
+      if (weightKg != null) 'weightKg': weightKg,
+      if (note != null) 'note': note,
+    };
+
+    print('Sending payload: ${json.encode(payload)}');
+
+    final response = await http.put(
+      Uri.parse('$baseUrl/exercises/$exerciseId'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(payload),
+    );
+
+    print('Complete exercise response status: ${response.statusCode}');
+    print('Complete exercise response body: ${response.body}');
+    print('Complete exercise response headers: ${response.headers}');
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      print('❌ ERROR completing exercise: ${response.statusCode}');
+      print('Error response body: ${response.body}');
+
+      // Try to parse error details
+      try {
+        final errorData = json.decode(response.body);
+        print('Error details: $errorData');
+      } catch (e) {
+        print('Could not parse error response as JSON');
+      }
+
+      throw Exception(
+        'Failed to complete exercise: ${response.statusCode} - ${response.body}',
+      );
+    }
+
+    print('✅ Exercise completed successfully');
+
+    // Handle 204 No Content response (empty body)
+    if (response.statusCode == 204 || response.body.isEmpty) {
+      return {'success': true, 'exerciseId': exerciseId};
+    }
+
+    final result = json.decode(response.body) as Map<String, dynamic>;
+    return result;
+  }
+
   // ==================== Exercise Types ====================
 
   /// Get all exercise types
@@ -205,7 +267,7 @@ class ExerciseService {
       'Route': route,
       'Metrics': metrics,
       'QuestId': questId,
-      'CompletedAt': DateTime.now().toIso8601String(),
+      'CompletedAt': DateTime.now().toUtc().toIso8601String(),
     };
 
     // Remove null values
@@ -230,10 +292,10 @@ class ExerciseService {
     final queryParams = <String, String>{};
 
     if (startDate != null) {
-      queryParams['startDate'] = startDate.toIso8601String();
+      queryParams['startDate'] = startDate.toUtc().toIso8601String();
     }
     if (endDate != null) {
-      queryParams['endDate'] = endDate.toIso8601String();
+      queryParams['endDate'] = endDate.toUtc().toIso8601String();
     }
     if (exerciseType != null) {
       queryParams['exerciseType'] = exerciseType;
@@ -260,10 +322,10 @@ class ExerciseService {
     final queryParams = <String, String>{};
 
     if (startDate != null) {
-      queryParams['startDate'] = startDate.toIso8601String();
+      queryParams['startDate'] = startDate.toUtc().toIso8601String();
     }
     if (endDate != null) {
-      queryParams['endDate'] = endDate.toIso8601String();
+      queryParams['endDate'] = endDate.toUtc().toIso8601String();
     }
 
     final uri = Uri.parse(
@@ -332,7 +394,7 @@ class ExerciseService {
       'Reps': reps,
       'Weight': weight,
       'Calories': calories,
-      'CompletedAt': DateTime.now().toIso8601String(),
+      'CompletedAt': DateTime.now().toUtc().toIso8601String(),
     };
 
     // Remove null values

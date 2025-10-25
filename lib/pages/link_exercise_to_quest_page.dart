@@ -225,11 +225,6 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
   }
 
   Future<void> _showCreateExerciseDialog() async {
-    final descriptionController = TextEditingController();
-    final repsController = TextEditingController(text: '10');
-    final setsController = TextEditingController(text: '3');
-    final weightController = TextEditingController(text: '0');
-
     if (_exerciseTypes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -250,42 +245,11 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
 
     if (selectedExerciseType == null) return;
 
-    // Show details form dialog
-    final result = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => _ExerciseDetailsDialog(
-            exerciseType: selectedExerciseType,
-            descriptionController: descriptionController,
-            repsController: repsController,
-            setsController: setsController,
-            weightController: weightController,
-          ),
-    );
-
-    if (result == true) {
-      await _createExercise(
-        selectedExerciseType['id'] as int,
-        descriptionController.text.trim(),
-        int.tryParse(repsController.text) ?? 10,
-        int.tryParse(setsController.text) ?? 3,
-        double.tryParse(weightController.text) ?? 0,
-      );
-    }
-
-    descriptionController.dispose();
-    repsController.dispose();
-    setsController.dispose();
-    weightController.dispose();
+    // Create exercise immediately with minimal info (details will be set at completion)
+    await _createExercise(selectedExerciseType['id'] as int);
   }
 
-  Future<void> _createExercise(
-    int exerciseTypeId,
-    String notes,
-    int reps,
-    int sets,
-    double weight,
-  ) async {
+  Future<void> _createExercise(int exerciseTypeId) async {
     final userProvider = context.read<UserProvider>();
     final userId = userProvider.user?.id;
 
@@ -294,8 +258,6 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     print(
       'exerciseTypeId: $exerciseTypeId (type: ${exerciseTypeId.runtimeType})',
     );
-    print('notes: $notes');
-    print('reps: $reps, sets: $sets, weight: $weight');
 
     if (userId == null) {
       print('ERROR: userId is null!');
@@ -304,13 +266,9 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
 
     try {
       print('Calling ExerciseService.createExercise...');
-      await ExerciseService.createExercise(
+      final created = await ExerciseService.createExercise(
         userId: userId,
         exerciseTypeId: exerciseTypeId,
-        note: notes.isNotEmpty ? notes : null,
-        repsPerSet: reps,
-        sets: sets,
-        weightKg: weight,
       );
       print('Exercise created successfully!');
 
@@ -322,7 +280,15 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
           ),
         );
       }
-      _loadExercises();
+
+      // Reload and auto-select the newly created exercise if ID is present
+      await _loadExercises();
+      final newId = created['id'] as String?;
+      if (newId != null) {
+        setState(() {
+          _selectedExerciseIds.add(newId);
+        });
+      }
     } catch (e, stackTrace) {
       print('ERROR creating exercise: $e');
       print('Stack trace: $stackTrace');
@@ -529,23 +495,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                                         : FontWeight.normal,
                               ),
                             ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (exercise['note'] != null &&
-                                    (exercise['note'] as String).isNotEmpty)
-                                  Text(
-                                    exercise['note'],
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${exercise['sets'] ?? 0} sets × ${exercise['repsPerSet'] ?? 0} reps @ ${exercise['weightKg'] ?? 0} kg',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ],
-                            ),
+                            subtitle: null,
                             trailing: IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
                               onPressed:
@@ -997,335 +947,4 @@ class _ExerciseTypeSelectionDialogState
 }
 
 // Exercise Details Dialog
-class _ExerciseDetailsDialog extends StatelessWidget {
-  final Map<String, dynamic> exerciseType;
-  final TextEditingController descriptionController;
-  final TextEditingController repsController;
-  final TextEditingController setsController;
-  final TextEditingController weightController;
-
-  const _ExerciseDetailsDialog({
-    required this.exerciseType,
-    required this.descriptionController,
-    required this.repsController,
-    required this.setsController,
-    required this.weightController,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final name = exerciseType['name']?.toString() ?? 'Exercise';
-    final icon = exerciseType['icon']?.toString() ?? '💪';
-    final description = exerciseType['description']?.toString() ?? '';
-    final category = exerciseType['category']?.toString() ?? '0';
-
-    Color categoryColor;
-    switch (category) {
-      case '1':
-        categoryColor = Colors.red;
-        break;
-      case '2':
-        categoryColor = Colors.purple;
-        break;
-      case '3':
-        categoryColor = Colors.blue;
-        break;
-      default:
-        categoryColor = Colors.grey;
-    }
-
-    return Dialog(
-      backgroundColor: const Color(0xFF1a1f3a),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header with Exercise Info
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [categoryColor, categoryColor.withOpacity(0.7)],
-                  ),
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            icon,
-                            style: const TextStyle(fontSize: 32),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                name.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                              if (description.isNotEmpty) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  description,
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
-                          onPressed: () => Navigator.pop(context, false),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              // Form Fields
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'WORKOUT DETAILS',
-                      style: TextStyle(
-                        color: Colors.cyan,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Notes
-                    TextField(
-                      controller: descriptionController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Personal Notes (optional)',
-                        labelStyle: const TextStyle(color: Colors.cyan),
-                        hintText:
-                            'e.g., Focus on form, increase weight next time',
-                        hintStyle: TextStyle(color: Colors.grey[600]),
-                        prefixIcon: const Icon(Icons.note, color: Colors.cyan),
-                        filled: true,
-                        fillColor: const Color(0xFF0d1123),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(
-                            color: Colors.cyan.withOpacity(0.3),
-                          ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(
-                            color: Colors.cyan,
-                            width: 2,
-                          ),
-                        ),
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Sets, Reps, Weight
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: setsController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Sets',
-                              labelStyle: const TextStyle(color: Colors.orange),
-                              prefixIcon: const Icon(
-                                Icons.repeat,
-                                color: Colors.orange,
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF0d1123),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.orange.withOpacity(0.3),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.orange,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: repsController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Reps',
-                              labelStyle: const TextStyle(color: Colors.blue),
-                              prefixIcon: const Icon(
-                                Icons.numbers,
-                                color: Colors.blue,
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF0d1123),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.blue.withOpacity(0.3),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.blue,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            keyboardType: TextInputType.number,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: weightController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: InputDecoration(
-                              labelText: 'Weight',
-                              labelStyle: const TextStyle(color: Colors.red),
-                              suffixText: 'kg',
-                              suffixStyle: TextStyle(color: Colors.grey[400]),
-                              prefixIcon: const Icon(
-                                Icons.fitness_center,
-                                color: Colors.red,
-                              ),
-                              filled: true,
-                              fillColor: const Color(0xFF0d1123),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(
-                                  color: Colors.red.withOpacity(0.3),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: const BorderSide(
-                                  color: Colors.red,
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Action Buttons
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              side: BorderSide(color: Colors.grey[600]!),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'CANCEL',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          flex: 2,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              backgroundColor: categoryColor,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: const Text(
-                              'CREATE EXERCISE',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+// Removed _ExerciseDetailsDialog: creation is now minimal; details are entered at completion time.

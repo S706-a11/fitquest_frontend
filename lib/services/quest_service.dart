@@ -179,18 +179,12 @@ class QuestService {
     required int questId,
     bool? completed,
   }) async {
-    // If completed is not provided, we'll use the toggle endpoint
-    if (completed == null) {
-      final response = await http.patch(
-        Uri.parse('$baseUrl/users/$userId/quests/$questId/toggle'),
-      );
-      return _handleResponse(response);
-    }
-
-    // Otherwise use the complete endpoint with the completed parameter
-    final response = await http.put(
-      Uri.parse('$baseUrl/quests/$questId/complete?completed=$completed'),
-    );
+    // Always use the PUT complete endpoint
+    // If completed is not provided, default to true (mark as complete)
+    final isCompleted = completed ?? true;
+    final url = '$baseUrl/quests/$questId/complete?completed=$isCompleted';
+    print('📍 Using PUT complete endpoint: $url');
+    final response = await http.put(Uri.parse(url));
     return _handleResponse(response);
   }
 
@@ -244,11 +238,20 @@ class QuestService {
     required String userId,
     required int questId,
   }) async {
+    print('🔍 Fetching exercises for quest $questId');
     final response = await http.get(
       Uri.parse('$baseUrl/quests/$questId/exercises'),
     );
+    print('📦 Quest exercises response status: ${response.statusCode}');
+
     if (response.statusCode == 200) {
-      return json.decode(response.body) as List<dynamic>;
+      final exercises = json.decode(response.body) as List<dynamic>;
+      print('📋 Loaded ${exercises.length} exercises');
+      // Print first exercise to see structure
+      if (exercises.isNotEmpty) {
+        print('📝 First exercise data: ${exercises.first}');
+      }
+      return exercises;
     }
     throw Exception('Failed to load quest exercises');
   }
