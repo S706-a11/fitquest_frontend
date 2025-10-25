@@ -78,11 +78,19 @@ class _QuestsPageState extends State<QuestsPage>
       if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
         parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
       }
-      if (q.totalWeight != null && q.targetWeight != null && q.targetWeight! > 0) {
-        parts.add(((q.totalWeight ?? 0) / (q.targetWeight ?? 1)).clamp(0.0, 1.0));
+      if (q.totalWeight != null &&
+          q.targetWeight != null &&
+          q.targetWeight! > 0) {
+        parts.add(
+          ((q.totalWeight ?? 0) / (q.targetWeight ?? 1)).clamp(0.0, 1.0),
+        );
       }
-      if (q.duration != null && q.targetDuration != null && q.targetDuration! > 0) {
-        parts.add(((q.duration ?? 0) / (q.targetDuration ?? 1)).clamp(0.0, 1.0));
+      if (q.duration != null &&
+          q.targetDuration != null &&
+          q.targetDuration! > 0) {
+        parts.add(
+          ((q.duration ?? 0) / (q.targetDuration ?? 1)).clamp(0.0, 1.0),
+        );
       }
       if (parts.isNotEmpty) {
         final avg = parts.reduce((a, b) => a + b) / parts.length;
@@ -92,6 +100,7 @@ class _QuestsPageState extends State<QuestsPage>
       final total = q.exercisesCount ?? 0;
       return total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
     }
+
     switch (_sortBy) {
       case 'priority':
         final priorityOrder = {'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3};
@@ -450,10 +459,14 @@ class _QuestListItem extends StatelessWidget {
     if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
       parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
     }
-    if (q.totalWeight != null && q.targetWeight != null && q.targetWeight! > 0) {
+    if (q.totalWeight != null &&
+        q.targetWeight != null &&
+        q.targetWeight! > 0) {
       parts.add(((q.totalWeight ?? 0) / (q.targetWeight ?? 1)).clamp(0.0, 1.0));
     }
-    if (q.duration != null && q.targetDuration != null && q.targetDuration! > 0) {
+    if (q.duration != null &&
+        q.targetDuration != null &&
+        q.targetDuration! > 0) {
       parts.add(((q.duration ?? 0) / (q.targetDuration ?? 1)).clamp(0.0, 1.0));
     }
     if (parts.isNotEmpty) {
@@ -468,9 +481,10 @@ class _QuestListItem extends StatelessWidget {
   Widget _buildProgressBar() {
     final progress = _computeProgressRatio(quest);
     final progressPercent = (progress * 100).toInt();
-    final usingCounts = (quest.totalReps == null &&
-        quest.totalWeight == null &&
-        quest.duration == null);
+    final usingCounts =
+        (quest.totalReps == null &&
+            quest.totalWeight == null &&
+            quest.duration == null);
     final completed = quest.completedExercisesCount ?? 0;
     final total = quest.exercisesCount ?? 0;
 
@@ -490,21 +504,21 @@ class _QuestListItem extends StatelessWidget {
             ),
             usingCounts
                 ? Text(
-                    '$completed/$total ($progressPercent%)',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  )
-                : Text(
-                    '$progressPercent%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[400],
-                      fontWeight: FontWeight.w600,
-                    ),
+                  '$completed/$total ($progressPercent%)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400],
+                    fontWeight: FontWeight.w600,
                   ),
+                )
+                : Text(
+                  '$progressPercent%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[400],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
           ],
         ),
         const SizedBox(height: 6),

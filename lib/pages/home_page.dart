@@ -4,8 +4,50 @@ import '../widgets/xp_bar.dart';
 import '../providers/user_provider.dart';
 import 'quest_tracker_page.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  bool _checkedLevelConsistency = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Ensure we only run once when the page appears
+    if (!_checkedLevelConsistency) {
+      _checkedLevelConsistency = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        final userProvider = context.read<UserProvider>();
+        final beforeLevel = userProvider.user?.level ?? 0;
+        final leveledUp = await userProvider.ensureLevelConsistency();
+        final afterLevel = userProvider.user?.level ?? beforeLevel;
+        if (mounted && leveledUp && afterLevel > beforeLevel) {
+          _showLevelUpDialog(afterLevel);
+        }
+      });
+    }
+  }
+
+  void _showLevelUpDialog(int newLevel) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Level Up! 🎉'),
+        content: Text('Congrats! You reached level $newLevel.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Nice'),
+          )
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

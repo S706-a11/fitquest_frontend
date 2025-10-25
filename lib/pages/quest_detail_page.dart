@@ -4,6 +4,7 @@ import '../models/quest.dart';
 import '../services/quest_service.dart';
 import '../services/exercise_service.dart';
 import '../providers/user_provider.dart';
+import '../services/user_service.dart';
 import 'link_exercise_to_quest_page.dart';
 
 class QuestDetailPage extends StatefulWidget {
@@ -279,6 +280,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
       final userProvider = context.read<UserProvider>();
       final userId = userProvider.user?.id;
+      final beforeLevel = userProvider.user?.level ?? 0;
+      final beforeXp = userProvider.user?.xp ?? 0;
       if (userId == null) return;
 
       try {
@@ -297,6 +300,30 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         setState(() {
           _quest = Quest.fromJson(questData);
         });
+
+        // Refresh user to reflect XP/level that backend may have awarded
+        await userProvider.refreshUser();
+
+        // If backend did not add XP, fallback to adding XP here
+        final reward = _quest?.xpReward ?? 0;
+        if (reward > 0 && mounted) {
+          final currentUser = context.read<UserProvider>().user;
+          if (currentUser != null && currentUser.xp == beforeXp) {
+            try {
+              await UserService.addXp(userId: userId, xpAmount: reward);
+              await userProvider.refreshUser();
+            } catch (e) {
+              print('Failed to add XP via fallback: $e');
+            }
+          }
+        }
+
+        // Level-up detection (compare latest against beforeLevel)
+        final afterLevel =
+            context.read<UserProvider>().user?.level ?? beforeLevel;
+        if (afterLevel > beforeLevel && mounted) {
+          _showLevelUpDialog(afterLevel);
+        }
 
         // Show congratulations message
         if (mounted) {
@@ -333,6 +360,33 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         print('Error auto-completing quest: $e');
       }
     }
+  }
+
+  void _showLevelUpDialog(int newLevel) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Level Up! 🎉'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Congrats! You reached level $newLevel.'),
+              const SizedBox(height: 8),
+              const Text('Keep going to unlock more rewards!'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Awesome'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // Manual toggle removed; quest completes automatically based on progress.
@@ -944,7 +998,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (!isCompleted && !(_quest?.isCompleted ?? false))
+                                  if (!isCompleted &&
+                                      !(_quest?.isCompleted ?? false))
                                     ElevatedButton.icon(
                                       onPressed:
                                           () => _completeExercise(exercise),
