@@ -94,9 +94,17 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
         print('Exercise $i: ${exercises[i]}');
       }
 
+      // Dedupe by exercise UUID to avoid accidental duplicates
+      final seen = <String>{};
+      final List<dynamic> deduped = [];
+      for (final ex in exercises) {
+        final id = (ex is Map) ? (ex['id']?.toString() ?? '') : '';
+        if (id.isEmpty || seen.add(id)) deduped.add(ex);
+      }
+
       setState(() {
-        _allExercises = exercises;
-        _filteredExercises = exercises;
+        _allExercises = deduped;
+        _filteredExercises = deduped;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -737,13 +745,34 @@ class _ExerciseTypeSelectionDialog extends StatefulWidget {
 class _ExerciseTypeSelectionDialogState
     extends State<_ExerciseTypeSelectionDialog> {
   final TextEditingController _searchController = TextEditingController();
+  // Keep a deduplicated base list to filter from
+  List<dynamic> _allTypesBase = [];
   List<dynamic> _filteredTypes = [];
   String _selectedCategory = 'All';
 
   @override
   void initState() {
     super.initState();
-    _filteredTypes = widget.exerciseTypes;
+    // Deduplicate by normalized name first (preferred UX),
+    // fallback to id if name is missing.
+    final Set<String> keys = {};
+    final List<dynamic> unique = [];
+    for (final t in widget.exerciseTypes) {
+      if (t is Map) {
+        final name = (t['name']?.toString() ?? '').trim().toLowerCase();
+        final id = (t['id']?.toString() ?? '').trim();
+        final key = name.isNotEmpty
+            ? 'name:$name'
+            : (id.isNotEmpty ? 'id:$id' : 'obj:${t.hashCode}');
+        if (keys.add(key)) unique.add(t);
+      } else {
+        // Non-map entries should be rare; include once
+        final key = 'obj:${t.hashCode}';
+        if (keys.add(key)) unique.add(t);
+      }
+    }
+    _allTypesBase = unique;
+    _filteredTypes = List<dynamic>.from(unique);
   }
 
   @override
@@ -755,7 +784,7 @@ class _ExerciseTypeSelectionDialogState
   void _filterExercises(String query) {
     setState(() {
       _filteredTypes =
-          widget.exerciseTypes.where((type) {
+          _allTypesBase.where((type) {
             final name = type['name']?.toString().toLowerCase() ?? '';
             final description =
                 type['description']?.toString().toLowerCase() ?? '';
@@ -765,33 +794,86 @@ class _ExerciseTypeSelectionDialogState
 
             if (_selectedCategory == 'All') return matchesSearch;
 
-            final category = type['category']?.toString() ?? '0';
-            return matchesSearch &&
-                _getCategoryName(category) == _selectedCategory;
+            final categoryName = _resolveCategory(
+              Map<String, dynamic>.from(type as Map),
+            );
+            return matchesSearch && categoryName == _selectedCategory;
           }).toList();
     });
   }
 
-  String _getCategoryName(String category) {
-    switch (category) {
-      case '1':
-        return 'Strength';
-      case '2':
-        return 'Flexibility';
-      case '3':
-        return 'Cardio';
-      default:
-        return 'Other';
+  // Resolve a human-friendly category from a type map.
+  String _resolveCategory(Map<String, dynamic> type) {
+    // 1) Prefer explicit category from API
+    final raw = type['category']?.toString();
+    if (raw != null && raw.isNotEmpty) {
+      final c = raw.toLowerCase().trim();
+      switch (c) {
+        // Numeric variants (APIs differ)
+        case '1':
+          return 'Strength';
+        case '2':
+          // Some APIs use 2 for Cardio; others for Flexibility.
+          // Disambiguate with flags if available.
+          final trReps = type['tracksReps'] == true;
+          final trW = type['tracksWeight'] == true;
+          final trDur = type['tracksDuration'] == true;
+          final trDist = type['tracksDistance'] == true;
+          if (!trReps && !trW && (trDur || trDist)) return 'Cardio';
+          if (trReps || trW) return 'Strength';
+          return 'Flexibility';
+        case '3':
+          // Some APIs use 3 for Cardio.
+          return 'Cardio';
+        // String variants
+        case 'strength':
+        case 'power':
+        case 'weights':
+        case 'weight':
+          return 'Strength';
+        case 'cardio':
+        case 'running':
+        case 'cycling':
+        case 'swimming':
+        case 'aerobic':
+        case 'endurance':
+          return 'Cardio';
+        case 'flexibility':
+        case 'mobility':
+        case 'stretch':
+        case 'yoga':
+        case 'flexible':
+          return 'Flexibility';
+        default:
+          // fall-through to heuristic below
+          break;
+      }
     }
+
+    // 2) Heuristic based on capability flags
+    final tracksReps = type['tracksReps'] == true;
+    final tracksWeight = type['tracksWeight'] == true;
+    final tracksDuration = type['tracksDuration'] == true;
+    final tracksDistance = type['tracksDistance'] == true;
+    if (tracksReps || tracksWeight) return 'Strength';
+    if (tracksDuration || tracksDistance) return 'Cardio';
+
+    // 3) Heuristic based on name keywords
+    final name = type['name']?.toString().toLowerCase() ?? '';
+    if (name.contains('yoga') || name.contains('stretch') || name.contains('mobility')) {
+      return 'Flexibility';
+    }
+
+    return 'Other';
   }
 
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case '1':
+  Color _getCategoryColorByName(String categoryName) {
+    switch (categoryName) {
+      case 'Strength':
         return Colors.red;
-      case '2':
+      case 'Flexibility':
         return Colors.purple;
-      case '3':
+      case 'Cardio':
         return Colors.blue;
       default:
         return Colors.grey;
@@ -981,9 +1063,12 @@ class _ExerciseTypeSelectionDialogState
                           final icon = type['icon']?.toString() ?? '💪';
                           final description =
                               type['description']?.toString() ?? '';
-                          final category = type['category']?.toString() ?? '0';
-                          final categoryName = _getCategoryName(category);
-                          final categoryColor = _getCategoryColor(category);
+                          final categoryName = _resolveCategory(
+                            Map<String, dynamic>.from(type as Map),
+                          );
+                          final categoryColor = _getCategoryColorByName(
+                            categoryName,
+                          );
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),

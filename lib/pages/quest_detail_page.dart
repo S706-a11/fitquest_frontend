@@ -20,6 +20,118 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
   List<dynamic> _exercises = [];
   bool _isLoading = true;
 
+  // ---- Helpers: robust numeric parsing and totals extraction ----
+  num? _asNum(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v;
+    return num.tryParse(v.toString());
+  }
+
+  int? _asInt(dynamic v) {
+    final n = _asNum(v);
+    return n?.toInt();
+  }
+
+  double? _asDouble(dynamic v) {
+    final n = _asNum(v);
+    return n?.toDouble();
+  }
+
+  dynamic _getAny(Map<String, dynamic> ex, List<String> keys) {
+    for (final k in keys) {
+      if (ex.containsKey(k) && ex[k] != null) return ex[k];
+    }
+    return null;
+  }
+
+  bool _includeExerciseForQuestFilters(Map<String, dynamic> ex) {
+    // Must be completed to count toward progress/totals
+    if (ex['endAt'] == null) return false;
+    // Filter by type IDs if provided
+    final typeFilter = _quest?.targetExerciseTypeIds;
+    if (typeFilter != null && typeFilter.isNotEmpty) {
+      final typeId = _asInt(_getAny(ex, const ['exerciseTypeId', 'typeId']));
+      if (typeId == null || !typeFilter.contains(typeId)) return false;
+    }
+    // Filter by name/note substrings if provided
+    final nameFilters = _quest?.includeNameContains;
+    if (nameFilters != null && nameFilters.isNotEmpty) {
+      final name =
+          (_getAny(ex, const ['exerciseTypeName', 'name'])?.toString() ?? '')
+              .toLowerCase();
+      final note = (ex['note']?.toString() ?? '').toLowerCase();
+      final match = nameFilters.any((s) {
+        final t = s.toLowerCase();
+        return name.contains(t) || note.contains(t);
+      });
+      if (!match) return false;
+    }
+    return true;
+  }
+
+  int? _getTotalReps(Map<String, dynamic> ex) {
+    // Try multiple casings/aliases
+    final raw = _getAny(ex, const [
+      'totalReps',
+      'TotalReps',
+      'repsTotal',
+      'total_rep',
+      'total_rep_count',
+    ]);
+    int? reps = _asInt(raw);
+    // Treat zero or null as missing and compute fallback when possible
+    if (reps == null || reps <= 0) {
+      final sets = _asInt(_getAny(ex, const ['sets', 'Sets']));
+      final repsPerSet = _asInt(
+        _getAny(ex, const ['repsPerSet', 'RepsPerSet', 'reps']),
+      );
+      if (sets != null && repsPerSet != null) {
+        reps = sets * repsPerSet;
+      }
+    }
+    return reps;
+  }
+
+  double? _getTotalWeight(Map<String, dynamic> ex) {
+    final raw = _getAny(ex, const [
+      'totalWeight',
+      'TotalWeight',
+      'total_weight',
+    ]);
+    double? w = _asDouble(raw);
+    if (w == null || w <= 0) {
+      final sets = _asInt(_getAny(ex, const ['sets', 'Sets']));
+      final repsPerSet = _asInt(
+        _getAny(ex, const ['repsPerSet', 'RepsPerSet', 'reps']),
+      );
+      final weightKg = _asDouble(
+        _getAny(ex, const ['weightKg', 'WeightKg', 'weight']),
+      );
+      if (sets != null && repsPerSet != null && weightKg != null) {
+        w = sets * repsPerSet * weightKg;
+      }
+    }
+    return w;
+  }
+
+  int? _getDuration(Map<String, dynamic> ex) {
+    final raw = _getAny(ex, const ['duration', 'Duration', 'totalDurationSec']);
+    int? d = _asInt(raw);
+    if (d == null || d < 0) {
+      // Fallback: compute from timestamps if available
+      final startAtStr = _getAny(ex, const ['startAt', 'StartAt'])?.toString();
+      final endAtStr = _getAny(ex, const ['endAt', 'EndAt'])?.toString();
+      if (startAtStr != null && endAtStr != null) {
+        try {
+          final start = DateTime.parse(startAtStr);
+          final end = DateTime.parse(endAtStr);
+          d = end.difference(start).inSeconds;
+        } catch (_) {}
+      }
+    }
+    return d;
+  }
+
   // Compute quest progress [0..1] using target metrics when available,
   // otherwise fall back to completed exercises ratio.
   double _computeProgressRatio() {
@@ -27,22 +139,74 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
     final List<double> parts = [];
 
+    bool _includeExercise(Map<String, dynamic> ex) =>
+        _includeExerciseForQuestFilters(ex);
+
+    // Resolve totals from quest or aggregate from exercises
+    int? _aggTotalReps() {
+      if (_quest!.totalReps != null) return _quest!.totalReps;
+      int sum = 0;
+      bool any = false;
+      for (final raw in _exercises) {
+        final ex = raw as Map<String, dynamic>;
+        if (!_includeExercise(ex)) continue;
+        final v = _getTotalReps(ex);
+        if (v != null && v > 0) {
+          sum += v;
+          any = true;
+        }
+      }
+      return any ? sum : null;
+    }
+
+    double? _aggTotalWeight() {
+      if (_quest!.totalWeight != null) return _quest!.totalWeight;
+      double sum = 0.0;
+      bool any = false;
+      for (final raw in _exercises) {
+        final ex = raw as Map<String, dynamic>;
+        if (!_includeExercise(ex)) continue;
+        final w = _getTotalWeight(ex);
+        if (w != null && w > 0) {
+          sum += w;
+          any = true;
+        }
+      }
+      return any ? sum : null;
+    }
+
+    int? _aggDuration() {
+      if (_quest!.duration != null) return _quest!.duration;
+      int sum = 0;
+      bool any = false;
+      for (final raw in _exercises) {
+        final ex = raw as Map<String, dynamic>;
+        if (!_includeExercise(ex)) continue;
+        final d = _getDuration(ex);
+        if (d != null && d > 0) {
+          sum += d;
+          any = true;
+        }
+      }
+      return any ? sum : null;
+    }
+
     // By totals: reps
-    final totalReps = _quest!.totalReps;
+    final totalReps = _aggTotalReps();
     final targetReps = _quest!.targetReps;
     if (totalReps != null && targetReps != null && targetReps > 0) {
       parts.add((totalReps / targetReps).clamp(0.0, 1.0));
     }
 
     // By totals: weight
-    final totalWeight = _quest!.totalWeight;
+    final totalWeight = _aggTotalWeight();
     final targetWeight = _quest!.targetWeight;
     if (totalWeight != null && targetWeight != null && targetWeight > 0) {
       parts.add((totalWeight / targetWeight).clamp(0.0, 1.0));
     }
 
     // By totals: duration (seconds)
-    final duration = _quest!.duration;
+    final duration = _aggDuration();
     final targetDuration = _quest!.targetDuration;
     if (duration != null && targetDuration != null && targetDuration > 0) {
       parts.add((duration / targetDuration).clamp(0.0, 1.0));
@@ -535,29 +699,88 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                 style: Theme.of(context).textTheme.titleLarge,
                               ),
                               const SizedBox(height: 12),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildStatColumn(
-                                    context,
-                                    'Duration',
-                                    _formatDuration(_quest!.duration),
-                                    Icons.timer,
-                                  ),
-                                  _buildStatColumn(
-                                    context,
-                                    'Total Reps',
-                                    '${_quest!.totalReps ?? 0}',
-                                    Icons.fitness_center,
-                                  ),
-                                  _buildStatColumn(
-                                    context,
-                                    'Total Weight',
-                                    '${_quest!.totalWeight ?? 0} kg',
-                                    Icons.monitor_weight,
-                                  ),
-                                ],
+                              // Aggregate totals from quest or exercises for display
+                              Builder(
+                                builder: (_) {
+                                  int? aggReps;
+                                  double? aggWeight;
+                                  int? aggDuration;
+                                  // compute using same helpers as ratio
+                                  {
+                                    int sumReps = 0;
+                                    bool anyReps = false;
+                                    for (final raw in _exercises) {
+                                      final ex = raw as Map<String, dynamic>;
+                                      if (!_includeExerciseForQuestFilters(ex))
+                                        continue;
+                                      final v = _getTotalReps(ex);
+                                      if (v != null && v > 0) {
+                                        sumReps += v;
+                                        anyReps = true;
+                                      }
+                                    }
+                                    aggReps =
+                                        _quest!.totalReps ??
+                                        (anyReps ? sumReps : null);
+
+                                    double sumW = 0.0;
+                                    bool anyW = false;
+                                    for (final raw in _exercises) {
+                                      final ex = raw as Map<String, dynamic>;
+                                      if (!_includeExerciseForQuestFilters(ex))
+                                        continue;
+                                      final w = _getTotalWeight(ex);
+                                      if (w != null && w > 0) {
+                                        sumW += w;
+                                        anyW = true;
+                                      }
+                                    }
+                                    aggWeight =
+                                        _quest!.totalWeight ??
+                                        (anyW ? sumW : null);
+
+                                    int sumD = 0;
+                                    bool anyD = false;
+                                    for (final raw in _exercises) {
+                                      final ex = raw as Map<String, dynamic>;
+                                      if (!_includeExerciseForQuestFilters(ex))
+                                        continue;
+                                      final d = _getDuration(ex);
+                                      if (d != null && d > 0) {
+                                        sumD += d;
+                                        anyD = true;
+                                      }
+                                    }
+                                    aggDuration =
+                                        _quest!.duration ??
+                                        (anyD ? sumD : null);
+                                  }
+
+                                  return Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _buildStatColumn(
+                                        context,
+                                        'Duration',
+                                        _formatDuration(aggDuration),
+                                        Icons.timer,
+                                      ),
+                                      _buildStatColumn(
+                                        context,
+                                        'Total Reps',
+                                        '${aggReps ?? 0}',
+                                        Icons.fitness_center,
+                                      ),
+                                      _buildStatColumn(
+                                        context,
+                                        'Total Weight',
+                                        '${(aggWeight ?? 0.0).toStringAsFixed(1)} kg',
+                                        Icons.monitor_weight,
+                                      ),
+                                    ],
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -661,7 +884,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'Completed: ${exercise['totalReps'] ?? 0} total reps',
+                                          'Completed: ${_getTotalReps(exercise) ?? 0} total reps',
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
                                             color: Colors.green,
@@ -679,7 +902,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          'Total Weight: ${(exercise['totalWeight'] ?? 0).toStringAsFixed(1)} kg',
+                                          'Total Weight: ${(_getTotalWeight(exercise) ?? 0.0).toStringAsFixed(1)} kg',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[700],
@@ -693,7 +916,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                         ),
                                         const SizedBox(width: 4),
                                         Text(
-                                          '${exercise['duration'] ?? 0}s',
+                                          '${_getDuration(exercise) ?? 0}s',
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[700],
