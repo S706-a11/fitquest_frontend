@@ -8,9 +8,10 @@ class Quest {
   final int xpReward;
   final bool isCompleted;
   final String? dueDate;
-  final int? duration;
-  final int? totalReps;
-  final double? totalWeight;
+  final int? duration; // seconds (from duration or totalDurationSec)
+  final int? totalReps; // from totalReps/TotalReps
+  final double?
+  totalWeight; // from totalWeight/TotalWeight or totalWeightLifted
   final int? totalSets;
   final int? exercisesCount; // Total exercises linked to quest
   final int? completedExercisesCount; // Exercises that are completed
@@ -215,6 +216,43 @@ class Quest {
             metrics?['nameContains'],
       );
 
+      // Resolve totals with flexible keys for list & detail DTOs
+      int? _durationSec(dynamic v) {
+        if (v == null) return null;
+        if (v is int) return v;
+        if (v is double) return v.toInt();
+        if (v is String) return int.tryParse(v);
+        return null;
+      }
+
+      final resolvedDuration = _durationSec(
+        json['totalDurationSec'] ??
+            json['TotalDurationSec'] ??
+            json['duration'],
+      );
+
+      int? _intFlex(dynamic a, dynamic b) {
+        final x = _asInt(a);
+        if (x != null) return x;
+        return _asInt(b);
+      }
+
+      double? _doubleFlex(dynamic a, dynamic b, dynamic c) {
+        final x = _asDouble(a);
+        if (x != null) return x;
+        final y = _asDouble(b);
+        if (y != null) return y;
+        return _asDouble(c);
+      }
+
+      final resolvedTotalReps = _intFlex(json['totalReps'], json['TotalReps']);
+      final resolvedTotalSets = _intFlex(json['totalSets'], json['TotalSets']);
+      final resolvedTotalWeight = _doubleFlex(
+        json['totalWeight'],
+        json['TotalWeight'],
+        json['totalWeightLifted'] ?? json['TotalWeightLifted'],
+      );
+
       return Quest(
         id: id,
         title: json['title'] as String? ?? '',
@@ -223,10 +261,10 @@ class Quest {
         xpReward: json['xpReward'] as int? ?? 0,
         isCompleted: json['isCompleted'] as bool? ?? false,
         dueDate: json['dueDate'] as String?,
-        duration: json['duration'] as int?,
-        totalReps: json['totalReps'] as int?,
-        totalWeight: (json['totalWeight'] as num?)?.toDouble(),
-        totalSets: json['totalSets'] as int?,
+        duration: resolvedDuration,
+        totalReps: resolvedTotalReps,
+        totalWeight: resolvedTotalWeight,
+        totalSets: resolvedTotalSets,
         exercisesCount: json['exercisesCount'] as int?,
         completedExercisesCount: json['completedExercisesCount'] as int?,
         targetMetrics: metrics,

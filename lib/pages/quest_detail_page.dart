@@ -153,6 +153,59 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     return sets;
   }
 
+  String? _resolveExerciseTypeName(int typeId) {
+    for (final raw in _exercises) {
+      final ex = raw as Map<String, dynamic>;
+      final id = _asInt(_getAny(ex, const ['exerciseTypeId', 'typeId']));
+      if (id == typeId) {
+        final name = _getAny(ex, const ['exerciseTypeName', 'name']);
+        if (name != null) return name.toString();
+      }
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _groupByExerciseType() {
+    final Map<int, Map<String, dynamic>> groups = {};
+    for (final raw in _exercises) {
+      final ex = raw as Map<String, dynamic>;
+      final typeId = _asInt(_getAny(ex, const ['exerciseTypeId', 'typeId']));
+      if (typeId == null) continue;
+      final isCompleted = ex['endAt'] != null;
+      final name = _getAny(ex, const ['exerciseTypeName', 'name'])?.toString();
+      final sets = _getSets(ex) ?? 0;
+      final reps = _getTotalReps(ex) ?? 0;
+      final weight = _getTotalWeight(ex) ?? 0.0;
+      final duration = _getDuration(ex) ?? 0;
+
+      final g = groups.putIfAbsent(
+        typeId,
+        () => {
+          'typeId': typeId,
+          'name': name,
+          'total': 0,
+          'completed': 0,
+          'sets': 0,
+          'reps': 0,
+          'weight': 0.0,
+          'duration': 0,
+        },
+      );
+      g['total'] = (g['total'] as int) + 1;
+      if (isCompleted) g['completed'] = (g['completed'] as int) + 1;
+      g['sets'] = (g['sets'] as int) + sets;
+      g['reps'] = (g['reps'] as int) + reps;
+      g['weight'] = (g['weight'] as double) + weight;
+      g['duration'] = (g['duration'] as int) + duration;
+      if (g['name'] == null && name != null) g['name'] = name;
+    }
+    final list = groups.values.toList();
+    list.sort(
+      (a, b) => (b['completed'] as int).compareTo(a['completed'] as int),
+    );
+    return list;
+  }
+
   // Compute quest progress [0..1] using target metrics when available,
   // otherwise fall back to completed exercises ratio.
   double _computeProgressRatio() {
@@ -776,6 +829,23 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                       ),
                                       label: Text('Due: ${_quest!.dueDate}'),
                                     ),
+                                  // Target Exercise Types (if any)
+                                  if ((_quest!.targetExerciseTypeIds ?? [])
+                                      .isNotEmpty)
+                                    ..._quest!.targetExerciseTypeIds!.map((id) {
+                                      final name = _resolveExerciseTypeName(id);
+                                      return Chip(
+                                        avatar: const Icon(
+                                          Icons.category,
+                                          size: 18,
+                                        ),
+                                        label: Text(
+                                          name != null
+                                              ? '$name (id:$id)'
+                                              : 'Type id:$id',
+                                        ),
+                                      );
+                                    }),
                                 ],
                               ),
                             ],
@@ -905,6 +975,107 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                             ],
                           ),
                         ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // By Exercise Type (breakdown)
+                      Builder(
+                        builder: (_) {
+                          final types = _groupByExerciseType();
+                          if (types.isEmpty) return const SizedBox.shrink();
+                          return Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'By Exercise Type',
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  ...types.map((t) {
+                                    final completed = t['completed'] as int;
+                                    final total = t['total'] as int;
+                                    final name =
+                                        (t['name'] as String?) ??
+                                        'Type #${t['typeId']}';
+                                    final ratio =
+                                        total > 0 ? completed / total : 0.0;
+                                    return Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 12,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  name,
+                                                  style:
+                                                      Theme.of(
+                                                        context,
+                                                      ).textTheme.titleMedium,
+                                                ),
+                                              ),
+                                              Text('$completed/$total'),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 6),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            child: LinearProgressIndicator(
+                                              value: ratio,
+                                              minHeight: 8,
+                                              backgroundColor: Colors.grey[300],
+                                              valueColor:
+                                                  AlwaysStoppedAnimation<Color>(
+                                                    ratio == 1.0
+                                                        ? Colors.green
+                                                        : Colors.blue,
+                                                  ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Wrap(
+                                            spacing: 12,
+                                            runSpacing: 4,
+                                            children: [
+                                              _miniStat(
+                                                Icons.view_array,
+                                                '${t['sets'] ?? 0} sets',
+                                              ),
+                                              _miniStat(
+                                                Icons.fitness_center,
+                                                '${t['reps'] ?? 0} reps',
+                                              ),
+                                              _miniStat(
+                                                Icons.monitor_weight,
+                                                '${(t['weight'] as double).toStringAsFixed(1)} kg',
+                                              ),
+                                              _miniStat(
+                                                Icons.timer,
+                                                _formatDuration(
+                                                  t['duration'] as int?,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
 
@@ -1140,6 +1311,17 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
         ),
         const SizedBox(height: 4),
         Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
+    );
+  }
+
+  Widget _miniStat(IconData icon, String text) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Colors.grey[700]),
+        const SizedBox(width: 4),
+        Text(text, style: TextStyle(fontSize: 12, color: Colors.grey[700])),
       ],
     );
   }

@@ -74,6 +74,7 @@ class _QuestsPageState extends State<QuestsPage>
 
   void _sortQuests() {
     double _ratio(Quest q) {
+      if (q.isCompleted) return 1.0; // ensure completed shows 100%
       final parts = <double>[];
       if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
         parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
@@ -445,19 +446,21 @@ class _QuestListItem extends StatelessWidget {
     }
   }
 
-  String _formatDuration(int? minutes) {
-    if (minutes == null || minutes == 0) return 'No progress';
-    final hours = minutes ~/ 60;
-    final mins = minutes % 60;
-    if (hours > 0) {
-      return '${hours}h ${mins}m';
-    }
-    return '${mins}m';
+  String _formatDuration(int? seconds) {
+    if (seconds == null || seconds == 0) return '-';
+    final duration = Duration(seconds: seconds);
+    final hours = duration.inHours;
+    final mins = duration.inMinutes.remainder(60);
+    final secs = duration.inSeconds.remainder(60);
+    if (hours > 0) return '${hours}h ${mins}m';
+    if (mins > 0) return '${mins}m ${secs}s';
+    return '${secs}s';
   }
 
   // Compute quest progress [0..1]. Prefer target-based totals if present,
   // else fall back to completed/total exercise count.
   double _computeProgressRatio(Quest q) {
+    if (q.isCompleted) return 1.0; // ensure completed shows 100%
     final parts = <double>[];
     if (q.totalReps != null && q.targetReps != null && q.targetReps! > 0) {
       parts.add((q.totalReps! / q.targetReps!).clamp(0.0, 1.0));
@@ -489,6 +492,7 @@ class _QuestListItem extends StatelessWidget {
     final progressPercent = (progress * 100).toInt();
     final usingCounts =
         (quest.totalReps == null &&
+            quest.totalSets == null &&
             quest.totalWeight == null &&
             quest.duration == null);
     final completed = quest.completedExercisesCount ?? 0;
@@ -625,12 +629,9 @@ class _QuestListItem extends StatelessWidget {
                 ],
               ),
 
-              // Progress Bar
-              if (quest.exercisesCount != null &&
-                  quest.exercisesCount! > 0) ...[
-                const SizedBox(height: 12),
-                _buildProgressBar(),
-              ],
+              // Progress Bar (always show to reflect target/totals or counts)
+              const SizedBox(height: 12),
+              _buildProgressBar(),
 
               if (quest.dueDate != null) ...[
                 const SizedBox(height: 8),
