@@ -18,14 +18,51 @@ class LinkExerciseToQuestPage extends StatefulWidget {
 class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
   List<dynamic> _allExercises = [];
   List<dynamic> _filteredExercises = [];
-  List<int> _selectedExerciseIds = [];
+  List<String> _selectedExerciseIds =
+      []; // Changed from List<int> to List<String> for UUID
+  List<dynamic> _exerciseTypes = [];
   bool _isLoading = true;
   String _searchQuery = '';
+  bool _initialized = false;
+
+  // Note: We now send ExerciseTypeId to the backend, so no string mapping is required.
 
   @override
-  void initState() {
-    super.initState();
-    _loadExercises();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      _loadExerciseTypes();
+      _loadExercises();
+    }
+  }
+
+  Future<void> _loadExerciseTypes() async {
+    try {
+      final types = await ExerciseService.getExerciseTypes();
+      if (mounted) {
+        setState(() {
+          _exerciseTypes = types;
+        });
+        print('Loaded ${types.length} exercise types from API');
+      }
+    } catch (e) {
+      print('Error loading exercise types: $e');
+      if (mounted) {
+        // Set default types if API fails
+        setState(() {
+          _exerciseTypes = [
+            {'id': 1, 'name': 'Strength', 'category': 'strength'},
+            {'id': 2, 'name': 'Cardio', 'category': 'cardio'},
+            {'id': 3, 'name': 'Running', 'category': 'running'},
+            {'id': 4, 'name': 'Cycling', 'category': 'cycling'},
+            {'id': 5, 'name': 'Swimming', 'category': 'swimming'},
+            {'id': 6, 'name': 'Flexibility', 'category': 'flexibility'},
+            {'id': 7, 'name': 'General', 'category': 'general'},
+          ];
+        });
+      }
+    }
   }
 
   Future<void> _loadExercises() async {
@@ -45,18 +82,23 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     }
 
     try {
-      final userIdInt = int.parse(userId);
-      print('Loading exercises for user: $userIdInt');
-      final exercises = await ExerciseService.getUserExercises(userIdInt);
+      print('Loading exercises for user: $userId');
+      final exercises = await ExerciseService.getUserExercises(userId);
       print('Loaded ${exercises.length} exercises');
+
+      // Debug: Print each exercise to see which one has the issue
+      for (var i = 0; i < exercises.length; i++) {
+        print('Exercise $i: ${exercises[i]}');
+      }
 
       setState(() {
         _allExercises = exercises;
         _filteredExercises = exercises;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('Error loading exercises: $e');
+      print('Stack trace: $stackTrace');
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -183,153 +225,47 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
   }
 
   Future<void> _showCreateExerciseDialog() async {
-    final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final repsController = TextEditingController(text: '10');
     final setsController = TextEditingController(text: '3');
     final weightController = TextEditingController(text: '0');
-    String selectedType = 'strength';
 
+    if (_exerciseTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Loading exercise types...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Show modern exercise selection dialog
+    final selectedExerciseType = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder:
+          (context) =>
+              _ExerciseTypeSelectionDialog(exerciseTypes: _exerciseTypes),
+    );
+
+    if (selectedExerciseType == null) return;
+
+    // Show details form dialog
     final result = await showDialog<bool>(
       context: context,
       builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setDialogState) => AlertDialog(
-                  title: const Text('Create Exercise'),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Exercise Name *',
-                            hintText: 'e.g., Push-ups, Squats',
-                            border: OutlineInputBorder(),
-                          ),
-                          textCapitalization: TextCapitalization.words,
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: selectedType,
-                          decoration: const InputDecoration(
-                            labelText: 'Exercise Type',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'strength',
-                              child: Text('Strength Training'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'cardio',
-                              child: Text('Cardio'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'running',
-                              child: Text('Running'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'cycling',
-                              child: Text('Cycling'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'swimming',
-                              child: Text('Swimming'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'general',
-                              child: Text('General'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            setDialogState(() {
-                              selectedType = value!;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          controller: descriptionController,
-                          decoration: const InputDecoration(
-                            labelText: 'Description (optional)',
-                            hintText: 'Add notes about this exercise',
-                            border: OutlineInputBorder(),
-                          ),
-                          maxLines: 2,
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: setsController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Sets',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: repsController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Reps',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: TextField(
-                                controller: weightController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Weight (kg)',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType:
-                                    const TextInputType.numberWithOptions(
-                                      decimal: true,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () async {
-                        if (nameController.text.trim().isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter exercise name'),
-                            ),
-                          );
-                          return;
-                        }
-                        Navigator.pop(context, true);
-                      },
-                      child: const Text('Create'),
-                    ),
-                  ],
-                ),
+          (context) => _ExerciseDetailsDialog(
+            exerciseType: selectedExerciseType,
+            descriptionController: descriptionController,
+            repsController: repsController,
+            setsController: setsController,
+            weightController: weightController,
           ),
     );
 
     if (result == true) {
       await _createExercise(
-        nameController.text.trim(),
-        selectedType,
+        selectedExerciseType['id'] as int,
         descriptionController.text.trim(),
         int.tryParse(repsController.text) ?? 10,
         int.tryParse(setsController.text) ?? 3,
@@ -337,7 +273,6 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
       );
     }
 
-    nameController.dispose();
     descriptionController.dispose();
     repsController.dispose();
     setsController.dispose();
@@ -345,9 +280,8 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
   }
 
   Future<void> _createExercise(
-    String name,
-    String exerciseType,
-    String description,
+    int exerciseTypeId,
+    String notes,
     int reps,
     int sets,
     double weight,
@@ -355,31 +289,112 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     final userProvider = context.read<UserProvider>();
     final userId = userProvider.user?.id;
 
-    if (userId == null) return;
+    print('=== CREATE EXERCISE DEBUG ===');
+    print('userId: $userId (type: ${userId.runtimeType})');
+    print(
+      'exerciseTypeId: $exerciseTypeId (type: ${exerciseTypeId.runtimeType})',
+    );
+    print('notes: $notes');
+    print('reps: $reps, sets: $sets, weight: $weight');
+
+    if (userId == null) {
+      print('ERROR: userId is null!');
+      return;
+    }
 
     try {
-      final userIdInt = int.parse(userId);
-
+      print('Calling ExerciseService.createExercise...');
       await ExerciseService.createExercise(
-        userId: userIdInt,
-        name: name,
-        exerciseType: exerciseType,
-        description: description.isNotEmpty ? description : null,
-        reps: reps,
-        weight: weight,
+        userId: userId,
+        exerciseTypeId: exerciseTypeId,
+        note: notes.isNotEmpty ? notes : null,
+        repsPerSet: reps,
+        sets: sets,
+        weightKg: weight,
       );
+      print('Exercise created successfully!');
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Exercise created successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exercise created successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+      _loadExercises();
+    } catch (e, stackTrace) {
+      print('ERROR creating exercise: $e');
+      print('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to create exercise: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteExercise(
+    String exerciseId,
+    String exerciseName,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Delete Exercise'),
+            content: Text('Are you sure you want to delete "$exerciseName"?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+
+    if (confirm == true) {
+      await _deleteExercise(exerciseId);
+    }
+  }
+
+  Future<void> _deleteExercise(String exerciseId) async {
+    try {
+      print('Deleting exercise: $exerciseId');
+      await ExerciseService.deleteExercise(exerciseId);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exercise deleted successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+
+      // Remove from selected list if it was selected
+      _selectedExerciseIds.remove(exerciseId);
 
       // Reload exercises
       _loadExercises();
     } catch (e) {
-      print('Error creating exercise: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to create exercise: $e')));
+      print('ERROR deleting exercise: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to delete exercise: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -480,7 +495,8 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                       itemCount: _filteredExercises.length,
                       itemBuilder: (context, index) {
                         final exercise = _filteredExercises[index];
-                        final exerciseId = exercise['id'] as int;
+                        final exerciseId =
+                            exercise['id'] as String; // UUID string
                         final isSelected = _selectedExerciseIds.contains(
                           exerciseId,
                         );
@@ -489,19 +505,23 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                           margin: const EdgeInsets.only(bottom: 8),
                           elevation: isSelected ? 4 : 1,
                           color: isSelected ? Colors.blue[50] : null,
-                          child: CheckboxListTile(
-                            value: isSelected,
-                            onChanged: (selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  _selectedExerciseIds.add(exerciseId);
-                                } else {
-                                  _selectedExerciseIds.remove(exerciseId);
-                                }
-                              });
-                            },
+                          child: ListTile(
+                            leading: Checkbox(
+                              value: isSelected,
+                              onChanged: (selected) {
+                                setState(() {
+                                  if (selected == true) {
+                                    _selectedExerciseIds.add(exerciseId);
+                                  } else {
+                                    _selectedExerciseIds.remove(exerciseId);
+                                  }
+                                });
+                              },
+                            ),
                             title: Text(
-                              exercise['name'] ?? 'Unknown Exercise',
+                              exercise['exerciseTypeName'] ??
+                                  exercise['name'] ??
+                                  'Unknown Exercise',
                               style: TextStyle(
                                 fontWeight:
                                     isSelected
@@ -512,31 +532,28 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (exercise['description'] != null &&
-                                    (exercise['description'] as String)
-                                        .isNotEmpty)
+                                if (exercise['note'] != null &&
+                                    (exercise['note'] as String).isNotEmpty)
                                   Text(
-                                    exercise['description'],
+                                    exercise['note'],
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${exercise['sets'] ?? 0} sets × ${exercise['reps'] ?? 0} reps @ ${exercise['weight'] ?? 0} kg',
+                                  '${exercise['sets'] ?? 0} sets × ${exercise['repsPerSet'] ?? 0} reps @ ${exercise['weightKg'] ?? 0} kg',
                                   style: const TextStyle(fontSize: 12),
                                 ),
                               ],
                             ),
-                            secondary: CircleAvatar(
-                              backgroundColor:
-                                  isSelected ? Colors.blue : Colors.grey[300],
-                              child: Icon(
-                                Icons.fitness_center,
-                                color:
-                                    isSelected
-                                        ? Colors.white
-                                        : Colors.grey[600],
-                              ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.red),
+                              onPressed:
+                                  () => _confirmDeleteExercise(
+                                    exerciseId,
+                                    exercise['exerciseTypeName'] ?? 'Exercise',
+                                  ),
+                              tooltip: 'Delete exercise',
                             ),
                           ),
                         );
@@ -558,6 +575,757 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
                 label: const Text('Create Exercise'),
                 backgroundColor: Colors.green,
               ),
+    );
+  }
+}
+
+// Modern Exercise Type Selection Dialog with Search
+class _ExerciseTypeSelectionDialog extends StatefulWidget {
+  final List<dynamic> exerciseTypes;
+
+  const _ExerciseTypeSelectionDialog({required this.exerciseTypes});
+
+  @override
+  State<_ExerciseTypeSelectionDialog> createState() =>
+      _ExerciseTypeSelectionDialogState();
+}
+
+class _ExerciseTypeSelectionDialogState
+    extends State<_ExerciseTypeSelectionDialog> {
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _filteredTypes = [];
+  String _selectedCategory = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    _filteredTypes = widget.exerciseTypes;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _filterExercises(String query) {
+    setState(() {
+      _filteredTypes =
+          widget.exerciseTypes.where((type) {
+            final name = type['name']?.toString().toLowerCase() ?? '';
+            final description =
+                type['description']?.toString().toLowerCase() ?? '';
+            final searchLower = query.toLowerCase();
+            final matchesSearch =
+                name.contains(searchLower) || description.contains(searchLower);
+
+            if (_selectedCategory == 'All') return matchesSearch;
+
+            final category = type['category']?.toString() ?? '0';
+            return matchesSearch &&
+                _getCategoryName(category) == _selectedCategory;
+          }).toList();
+    });
+  }
+
+  String _getCategoryName(String category) {
+    switch (category) {
+      case '1':
+        return 'Strength';
+      case '2':
+        return 'Flexibility';
+      case '3':
+        return 'Cardio';
+      default:
+        return 'Other';
+    }
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case '1':
+        return Colors.red;
+      case '2':
+        return Colors.purple;
+      case '3':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: const Color(0xFF1a1f3a),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+        child: Column(
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade700, Colors.purple.shade400],
+                ),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.fitness_center,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'SELECT EXERCISE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Choose from available exercises',
+                          style: TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+
+            // Search Bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              color: const Color(0xFF0d1123),
+              child: TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Search exercises...',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  prefixIcon: Icon(Icons.search, color: Colors.cyan[300]),
+                  suffixIcon:
+                      _searchController.text.isNotEmpty
+                          ? IconButton(
+                            icon: Icon(Icons.clear, color: Colors.red[300]),
+                            onPressed: () {
+                              _searchController.clear();
+                              _filterExercises('');
+                            },
+                          )
+                          : null,
+                  filled: true,
+                  fillColor: const Color(0xFF1a1f3a),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide(color: Colors.cyan.withOpacity(0.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: const BorderSide(color: Colors.cyan, width: 2),
+                  ),
+                ),
+                onChanged: _filterExercises,
+              ),
+            ),
+
+            // Category Filters
+            Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildCategoryChip('All', Colors.grey),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Strength', Colors.red),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Cardio', Colors.blue),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Flexibility', Colors.purple),
+                  const SizedBox(width: 8),
+                  _buildCategoryChip('Other', Colors.orange),
+                ],
+              ),
+            ),
+
+            // Results Count
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.list, size: 16, color: Colors.cyan[300]),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_filteredTypes.length} exercise${_filteredTypes.length != 1 ? 's' : ''} found',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+
+            // Exercise List
+            Expanded(
+              child:
+                  _filteredTypes.isEmpty
+                      ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off,
+                              size: 64,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'NO EXERCISES FOUND',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Try a different search term or category',
+                              style: TextStyle(
+                                color: Colors.grey[500],
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: _filteredTypes.length,
+                        itemBuilder: (context, index) {
+                          final type = _filteredTypes[index];
+                          final name = type['name']?.toString() ?? 'Unknown';
+                          final icon = type['icon']?.toString() ?? '💪';
+                          final description =
+                              type['description']?.toString() ?? '';
+                          final category = type['category']?.toString() ?? '0';
+                          final categoryName = _getCategoryName(category);
+                          final categoryColor = _getCategoryColor(category);
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF1a1f3a),
+                                  const Color(0xFF0d1123),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: categoryColor.withOpacity(0.3),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: categoryColor.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => Navigator.pop(context, type),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
+                                  children: [
+                                    // Icon
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            categoryColor,
+                                            categoryColor.withOpacity(0.7),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: categoryColor.withOpacity(
+                                              0.3,
+                                            ),
+                                            blurRadius: 8,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Text(
+                                        icon,
+                                        style: const TextStyle(fontSize: 28),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    // Info
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            description,
+                                            style: TextStyle(
+                                              color: Colors.grey[400],
+                                              fontSize: 12,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: categoryColor.withOpacity(
+                                                0.2,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: categoryColor
+                                                    .withOpacity(0.5),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              categoryName.toUpperCase(),
+                                              style: TextStyle(
+                                                color: categoryColor,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: categoryColor.withOpacity(0.5),
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String label, Color color) {
+    final isSelected = _selectedCategory == label;
+    return FilterChip(
+      label: Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: isSelected ? Colors.white : color,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.5,
+        ),
+      ),
+      selected: isSelected,
+      onSelected: (_) {
+        setState(() {
+          _selectedCategory = label;
+          _filterExercises(_searchController.text);
+        });
+      },
+      backgroundColor: const Color(0xFF1a1f3a),
+      selectedColor: color,
+      checkmarkColor: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    );
+  }
+}
+
+// Exercise Details Dialog
+class _ExerciseDetailsDialog extends StatelessWidget {
+  final Map<String, dynamic> exerciseType;
+  final TextEditingController descriptionController;
+  final TextEditingController repsController;
+  final TextEditingController setsController;
+  final TextEditingController weightController;
+
+  const _ExerciseDetailsDialog({
+    required this.exerciseType,
+    required this.descriptionController,
+    required this.repsController,
+    required this.setsController,
+    required this.weightController,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = exerciseType['name']?.toString() ?? 'Exercise';
+    final icon = exerciseType['icon']?.toString() ?? '💪';
+    final description = exerciseType['description']?.toString() ?? '';
+    final category = exerciseType['category']?.toString() ?? '0';
+
+    Color categoryColor;
+    switch (category) {
+      case '1':
+        categoryColor = Colors.red;
+        break;
+      case '2':
+        categoryColor = Colors.purple;
+        break;
+      case '3':
+        categoryColor = Colors.blue;
+        break;
+      default:
+        categoryColor = Colors.grey;
+    }
+
+    return Dialog(
+      backgroundColor: const Color(0xFF1a1f3a),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 500),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header with Exercise Info
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [categoryColor, categoryColor.withOpacity(0.7)],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            icon,
+                            style: const TextStyle(fontSize: 32),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                              if (description.isNotEmpty) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  description,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.white),
+                          onPressed: () => Navigator.pop(context, false),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Form Fields
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'WORKOUT DETAILS',
+                      style: TextStyle(
+                        color: Colors.cyan,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Notes
+                    TextField(
+                      controller: descriptionController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Personal Notes (optional)',
+                        labelStyle: const TextStyle(color: Colors.cyan),
+                        hintText:
+                            'e.g., Focus on form, increase weight next time',
+                        hintStyle: TextStyle(color: Colors.grey[600]),
+                        prefixIcon: const Icon(Icons.note, color: Colors.cyan),
+                        filled: true,
+                        fillColor: const Color(0xFF0d1123),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: Colors.cyan.withOpacity(0.3),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Colors.cyan,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Sets, Reps, Weight
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: setsController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Sets',
+                              labelStyle: const TextStyle(color: Colors.orange),
+                              prefixIcon: const Icon(
+                                Icons.repeat,
+                                color: Colors.orange,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFF0d1123),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.orange.withOpacity(0.3),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.orange,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: repsController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Reps',
+                              labelStyle: const TextStyle(color: Colors.blue),
+                              prefixIcon: const Icon(
+                                Icons.numbers,
+                                color: Colors.blue,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFF0d1123),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.blue.withOpacity(0.3),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.blue,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            keyboardType: TextInputType.number,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: weightController,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Weight',
+                              labelStyle: const TextStyle(color: Colors.red),
+                              suffixText: 'kg',
+                              suffixStyle: TextStyle(color: Colors.grey[400]),
+                              prefixIcon: const Icon(
+                                Icons.fitness_center,
+                                color: Colors.red,
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFF0d1123),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(
+                                  color: Colors.red.withOpacity(0.3),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.red,
+                                  width: 2,
+                                ),
+                              ),
+                            ),
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              side: BorderSide(color: Colors.grey[600]!),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'CANCEL',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(context, true),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              backgroundColor: categoryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Text(
+                              'CREATE EXERCISE',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

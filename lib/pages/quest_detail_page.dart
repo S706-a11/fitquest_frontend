@@ -128,7 +128,8 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     }
   }
 
-  Future<void> _removeExercise(int exerciseId) async {
+  Future<void> _removeExercise(String exerciseId) async {
+    // Changed from int to String
     final userProvider = context.read<UserProvider>();
     final userId = userProvider.user?.id;
     if (userId == null) return;
@@ -360,8 +361,9 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
                                   color: Colors.red,
                                 ),
                                 onPressed:
-                                    () =>
-                                        _removeExercise(exercise['id'] as int),
+                                    () => _removeExercise(
+                                      exercise['id'] as String,
+                                    ), // UUID string
                               ),
                             ),
                           );

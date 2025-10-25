@@ -1,7 +1,7 @@
 /// Model class for Exercise
 class Exercise {
   final int id;
-  final int userId;
+  final String userId;
   final String name;
   final String exerciseType;
   final String? description;
@@ -31,7 +31,7 @@ class Exercise {
   factory Exercise.fromJson(Map<String, dynamic> json) {
     return Exercise(
       id: json['id'] as int? ?? 0,
-      userId: json['userId'] as int? ?? 0,
+      userId: json['userId'] as String? ?? '',
       name: json['name'] as String? ?? '',
       exerciseType: json['exerciseType'] as String? ?? 'general',
       description: json['description'] as String?,
@@ -93,7 +93,7 @@ class Exercise {
 /// Model class for Exercise Session
 class ExerciseSession {
   final int id;
-  final int userId;
+  final String userId;
   final String exerciseType;
   final int duration; // in seconds
   final double? distance; // in meters
@@ -127,7 +127,7 @@ class ExerciseSession {
 
     return ExerciseSession(
       id: json['id'] as int? ?? 0,
-      userId: json['userId'] as int? ?? 0,
+      userId: json['userId'] as String? ?? '',
       exerciseType: json['exerciseType'] as String? ?? 'general',
       duration: json['duration'] as int? ?? 0,
       distance: (json['distance'] as num?)?.toDouble(),

@@ -257,8 +257,6 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
     }
 
     try {
-      final userIdInt = int.parse(userId);
-
       // Convert route points to the format expected by the API
       List<Map<String, double>>? route;
       if (_routePoints.isNotEmpty) {
@@ -277,7 +275,7 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
 
       // Log the exercise session
       await ExerciseService.logExerciseSession(
-        userId: userIdInt,
+        userId: userId,
         exerciseType: widget.exerciseType,
         duration: elapsed.inSeconds,
         distance: _distance > 0 ? _distance : null,

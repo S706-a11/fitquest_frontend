@@ -37,50 +37,79 @@ class ExerciseService {
   }
 
   /// Get exercises for a specific user
-  static Future<List<dynamic>> getUserExercises(int userId) async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/users/$userId/exercises'),
-    );
+  static Future<List<dynamic>> getUserExercises(String userId) async {
+    print('=== getUserExercises DEBUG ===');
+    print('userId: $userId (type: ${userId.runtimeType})');
+
+    // API returns paginated response: { items: [...], total: 10, page: 1, pageSize: 20 }
+    final url = Uri.parse('$baseUrl/exercises?userId=$userId');
+    print('GET request to: $url');
+
+    final response = await http.get(url);
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
     if (response.statusCode == 200) {
-      return json.decode(response.body) as List<dynamic>;
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final items = (data['items'] as List<dynamic>?) ?? [];
+      print('Found ${items.length} exercises');
+      return items;
     }
+    print('ERROR: Failed to load user exercises');
     throw Exception('Failed to load user exercises');
   }
 
   /// Create a new exercise for a user
   static Future<Map<String, dynamic>> createExercise({
-    required int userId,
-    required String name,
-    required String exerciseType,
-    String? description,
-    int? duration,
-    double? distance,
-    int? reps,
-    double? weight,
-    int? calories,
+    required String userId,
+    required int exerciseTypeId,
+    String? note,
+    int? repsPerSet,
+    int? sets,
+    double? weightKg,
+    DateTime? startAt,
+    DateTime? endAt,
+    int? questId,
   }) async {
-    final body = {
-      'UserId': userId,
-      'Name': name,
-      'ExerciseType': exerciseType,
-      'Description': description,
-      'Duration': duration,
-      'Distance': distance,
-      'Reps': reps,
-      'Weight': weight,
-      'Calories': calories,
-    };
-
-    // Remove null values
-    body.removeWhere((key, value) => value == null);
-
-    final response = await http.post(
-      Uri.parse('$baseUrl/exercises'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(body),
+    print('=== ExerciseService.createExercise DEBUG ===');
+    print('userId: $userId (type: ${userId.runtimeType})');
+    print(
+      'exerciseTypeId: $exerciseTypeId (type: ${exerciseTypeId.runtimeType})',
     );
 
-    return _handleResponse(response);
+    final url = Uri.parse('$baseUrl/exercises');
+    final payload = <String, dynamic>{
+      'userId': userId,
+      'exerciseTypeId': exerciseTypeId,
+      if (note != null) 'note': note,
+      if (repsPerSet != null) 'repsPerSet': repsPerSet,
+      if (sets != null) 'sets': sets,
+      if (weightKg != null) 'weightKg': weightKg,
+      if (startAt != null) 'startAt': startAt.toIso8601String(),
+      if (endAt != null) 'endAt': endAt.toIso8601String(),
+      if (questId != null) 'questId': questId,
+    };
+
+    print('Payload: ${jsonEncode(payload)}');
+    print('Sending POST to: $url');
+
+    final res = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+
+    print('Response status: ${res.statusCode}');
+    print('Response body: ${res.body}');
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      print('ERROR: API returned ${res.statusCode}');
+      throw Exception('API Error: ${res.statusCode} - ${res.body}');
+    }
+
+    final result = jsonDecode(res.body) as Map<String, dynamic>;
+    print('Successfully created exercise: $result');
+    return result;
   }
 
   /// Update an existing exercise
@@ -116,14 +145,23 @@ class ExerciseService {
   }
 
   /// Delete an exercise
-  static Future<void> deleteExercise(int exerciseId) async {
+  static Future<void> deleteExercise(String exerciseId) async {
+    // UUID string
+    print('=== deleteExercise DEBUG ===');
+    print('Deleting exerciseId: $exerciseId');
+
     final response = await http.delete(
       Uri.parse('$baseUrl/exercises/$exerciseId'),
     );
 
+    print('Delete response status: ${response.statusCode}');
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      print('ERROR deleting exercise: ${response.statusCode}');
       throw Exception('Failed to delete exercise: ${response.statusCode}');
     }
+
+    print('Exercise deleted successfully');
   }
 
   // ==================== Exercise Types ====================
@@ -149,7 +187,7 @@ class ExerciseService {
 
   /// Log an exercise session
   static Future<Map<String, dynamic>> logExerciseSession({
-    required int userId,
+    required String userId,
     required String exerciseType,
     required int duration, // in seconds
     double? distance, // in meters
@@ -184,7 +222,7 @@ class ExerciseService {
 
   /// Get exercise sessions for a user
   static Future<List<dynamic>> getUserExerciseSessions({
-    required int userId,
+    required String userId,
     DateTime? startDate,
     DateTime? endDate,
     String? exerciseType,
@@ -215,7 +253,7 @@ class ExerciseService {
 
   /// Get exercise statistics for a user
   static Future<Map<String, dynamic>> getUserExerciseStats({
-    required int userId,
+    required String userId,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
@@ -320,7 +358,7 @@ class ExerciseService {
   // ==================== Achievements & Goals ====================
 
   /// Get exercise achievements for a user
-  static Future<List<dynamic>> getUserAchievements(int userId) async {
+  static Future<List<dynamic>> getUserAchievements(String userId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/exercises/achievements'),
     );
@@ -333,7 +371,7 @@ class ExerciseService {
 
   /// Set exercise goals for a user
   static Future<Map<String, dynamic>> setExerciseGoal({
-    required int userId,
+    required String userId,
     required String goalType, // 'daily', 'weekly', 'monthly'
     required String metricType, // 'duration', 'distance', 'calories'
     required double targetValue,
@@ -359,7 +397,7 @@ class ExerciseService {
   }
 
   /// Get exercise goals for a user
-  static Future<List<dynamic>> getUserExerciseGoals(int userId) async {
+  static Future<List<dynamic>> getUserExerciseGoals(String userId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/exercises/goals'),
     );

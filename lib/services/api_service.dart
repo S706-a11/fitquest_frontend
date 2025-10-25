@@ -39,13 +39,13 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> getUserById(int userId) async {
+  static Future<Map<String, dynamic>> getUserById(String userId) async {
     final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> updateUser({
-    required int userId,
+    required String userId,
     String? name,
     String? email,
     int? level,
@@ -66,7 +66,7 @@ class ApiService {
   }
 
   // Quest endpoints
-  static Future<List<dynamic>> getUserQuests(int userId) async {
+  static Future<List<dynamic>> getUserQuests(String userId) async {
     final response = await http.get(Uri.parse('$baseUrl/users/$userId/quests'));
     if (response.statusCode == 200) {
       return json.decode(response.body) as List<dynamic>;
@@ -74,7 +74,7 @@ class ApiService {
     throw Exception('Failed to load quests');
   }
 
-  static Future<List<dynamic>> getActiveQuests(int userId) async {
+  static Future<List<dynamic>> getActiveQuests(String userId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/active'),
     );
@@ -84,7 +84,7 @@ class ApiService {
     throw Exception('Failed to load active quests');
   }
 
-  static Future<List<dynamic>> getCompletedQuests(int userId) async {
+  static Future<List<dynamic>> getCompletedQuests(String userId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/$userId/quests/completed'),
     );
@@ -95,7 +95,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> createQuest({
-    required int userId,
+    required String userId,
     required String title,
     required String description,
     int? xpReward,
@@ -115,7 +115,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> toggleQuestStatus({
-    required int userId,
+    required String userId,
     required int questId,
   }) async {
     final response = await http.patch(
