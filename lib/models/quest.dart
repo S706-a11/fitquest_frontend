@@ -18,6 +18,9 @@ class Quest {
   final int? targetReps;
   final double? targetWeight;
   final int? targetDuration; // seconds
+  // Optional filters to determine which exercises count toward progress
+  final List<int>? targetExerciseTypeIds;
+  final List<String>? includeNameContains;
 
   Quest({
     required this.id,
@@ -36,6 +39,8 @@ class Quest {
     this.targetReps,
     this.targetWeight,
     this.targetDuration,
+    this.targetExerciseTypeIds,
+    this.includeNameContains,
   });
 
   factory Quest.fromJson(Map<String, dynamic> json) {
@@ -105,6 +110,34 @@ class Quest {
         return null;
       }
 
+      // Extract duration seconds supporting multiple key formats and minutes conversion
+      int? _durationSecondsFrom(
+        Map<String, dynamic> j,
+        Map<String, dynamic>? m,
+      ) {
+        // Prefer DTO fields (new keys first)
+        final direct = _asInt(
+          j['targetDurationSec'] ??
+              j['TargetDurationSec'] ??
+              j['targetDuration'] ??
+              j['TargetDuration'],
+        );
+        if (direct != null) return direct;
+
+        // From metrics map
+        final mSec = _asInt(
+          m?['targetDurationSec'] ??
+              m?['totalDurationSec'] ??
+              m?['totalDurationSeconds'] ??
+              m?['duration'],
+        );
+        if (mSec != null) return mSec;
+
+        final mMin = _asDouble(m?['durationMinutes']);
+        if (mMin != null) return (mMin * 60).round();
+        return null;
+      }
+
       final targetReps = _asInt(
         json['targetReps'] ??
             json['TargetReps'] ??
@@ -119,12 +152,56 @@ class Quest {
             metrics?['weight'] ??
             metrics?['totalWeight'],
       );
-      final targetDuration = _asInt(
-        json['targetDuration'] ??
-            json['TargetDuration'] ??
-            metrics?['targetDuration'] ??
-            metrics?['duration'] ??
-            metrics?['totalDurationSeconds'],
+      final targetDuration = _durationSecondsFrom(json, metrics);
+
+      // Parse optional filters
+      List<int>? _asIntList(dynamic v) {
+        if (v == null) return null;
+        final List<int> out = [];
+        if (v is List) {
+          for (final e in v) {
+            final val = _asInt(e);
+            if (val != null) out.add(val);
+          }
+        } else if (v is String) {
+          // support comma-separated
+          for (final part in v.split(',')) {
+            final val = _asInt(part.trim());
+            if (val != null) out.add(val);
+          }
+        }
+        return out.isEmpty ? null : out;
+      }
+
+      List<String>? _asStringList(dynamic v) {
+        if (v == null) return null;
+        final List<String> out = [];
+        if (v is List) {
+          for (final e in v) {
+            if (e == null) continue;
+            out.add(e.toString());
+          }
+        } else if (v is String) {
+          // comma-separated
+          for (final part in v.split(',')) {
+            final s = part.trim();
+            if (s.isNotEmpty) out.add(s);
+          }
+        }
+        return out.isEmpty ? null : out;
+      }
+
+      final targetExerciseTypeIds = _asIntList(
+        json['targetExerciseTypeIds'] ??
+            json['TargetExerciseTypeIds'] ??
+            metrics?['exerciseTypeIds'] ??
+            metrics?['includeExerciseTypeIds'],
+      );
+      final includeNameContains = _asStringList(
+        json['includeNameContains'] ??
+            json['IncludeNameContains'] ??
+            metrics?['includeNameContains'] ??
+            metrics?['nameContains'],
       );
 
       return Quest(
@@ -144,6 +221,8 @@ class Quest {
         targetReps: targetReps,
         targetWeight: targetWeight,
         targetDuration: targetDuration,
+        targetExerciseTypeIds: targetExerciseTypeIds,
+        includeNameContains: includeNameContains,
       );
     } catch (e) {
       print('Quest.fromJson: Error parsing quest: $e');
@@ -167,6 +246,8 @@ class Quest {
       'targetReps': targetReps,
       'targetWeight': targetWeight,
       'targetDuration': targetDuration,
+      'targetExerciseTypeIds': targetExerciseTypeIds,
+      'includeNameContains': includeNameContains,
     };
   }
 }
