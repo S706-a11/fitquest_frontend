@@ -28,13 +28,26 @@ class ApiService {
     String? password,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/users'),
+      Uri.parse('$baseUrl/users/register'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'displayName': name, // Backend expects displayName
         'email': email,
         'password': password,
       }),
+    );
+    return _handleResponse(response);
+  }
+
+  //login
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
     );
     return _handleResponse(response);
   }
@@ -61,6 +74,79 @@ class ApiService {
       Uri.parse('$baseUrl/users/$userId'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
+    );
+    return _handleResponse(response);
+  }
+
+  // Daily goal endpoints
+  static Future<List<dynamic>> getDailyGoals() async {
+    final response = await http.get(Uri.parse('$baseUrl/daily-goals'));
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body is List) {
+        return body;
+      }
+      throw Exception('Unexpected daily goals response format');
+    }
+    throw Exception('Failed to load daily goals');
+  }
+
+  static Future<Map<String, dynamic>> createDailyGoal({
+    required String userId,
+    required DateTime date,
+    int targetMinutes = 60,
+    int targetReps = 100,
+    int targetDistanceM = 5000,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/daily-goals'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'userId': userId,
+        'dateYmd': _formatDateOnly(date),
+        'targetMinutes': targetMinutes,
+        'targetReps': targetReps,
+        'targetDistanceM': targetDistanceM,
+      }),
+    );
+    return _handleResponse(response);
+  }
+
+  // Monthly goal endpoints
+  static Future<List<dynamic>> getMonthlyGoals() async {
+    final response = await http.get(Uri.parse('$baseUrl/monthly-goals'));
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body is List) {
+        return body;
+      }
+      throw Exception('Unexpected monthly goals response format');
+    }
+    throw Exception('Failed to load monthly goals');
+  }
+
+  static Future<Map<String, dynamic>> createMonthlyGoal({
+    required String userId,
+    required int year,
+    required int month,
+    int targetMinutes = 1200,
+    int targetReps = 2000,
+    int targetDistanceM = 100000,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/monthly-goals'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'userId': userId,
+        'year': year,
+        'month': month,
+        'targetMinutes': targetMinutes,
+        'targetReps': targetReps,
+        'targetDistanceM': targetDistanceM,
+        'progressMinutes': 0,
+        'progressReps': 0,
+        'progressDistanceM': 0,
+      }),
     );
     return _handleResponse(response);
   }
@@ -139,5 +225,12 @@ class ApiService {
       return json.decode(response.body) as List<dynamic>;
     }
     throw Exception('Failed to load exercise types');
+  }
+
+  static String _formatDateOnly(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
   }
 }

@@ -11,35 +11,14 @@ class AuthService {
   static Future<User?> login(String email, String password) async {
     try {
       // Get all users and find by email
-      final response = await ApiService.getUsers();
+      final response = await ApiService.login(email: email, password: password);
 
-      // The API returns a list of users
-      final List<dynamic> users =
-          (response is List)
-              ? response as List<dynamic>
-              : (response as List<dynamic>);
-
-      // Find user by email (case insensitive)
-      dynamic userJson;
-      try {
-        userJson = users.firstWhere(
-          (u) => u['email'].toString().toLowerCase() == email.toLowerCase(),
-        );
-      } catch (e) {
-        userJson = null;
-      }
-
-      if (userJson != null) {
-        final user = User.fromJson(userJson);
-        await _saveUserLocally(user);
-        return user;
-      }
-
-      // If user not found, return null
-      return null;
+      final user = User.fromJson(response);
+      await _saveUserLocally(user);
+      return user;
     } catch (e) {
       print('Login error: $e');
-      return null;
+      rethrow; // Re-throw to let the UI handle specific error messages
     }
   }
 
@@ -68,7 +47,7 @@ class AuthService {
   // Save user data locally
   static Future<void> _saveUserLocally(User user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_userIdKey, user.id);
+    await prefs.setString(_userIdKey, user.id.toString());
     await prefs.setString(_userNameKey, user.name);
     await prefs.setString(_userEmailKey, user.email);
   }
@@ -91,7 +70,13 @@ class AuthService {
       final email = prefs.getString(_userEmailKey);
 
       if (name != null && email != null) {
-        return User(id: userId, name: name, email: email, level: 1, xp: 0);
+        return User(
+          id: userId.toString(),
+          name: name,
+          email: email,
+          level: 1,
+          xp: 0,
+        );
       }
       return null;
     }

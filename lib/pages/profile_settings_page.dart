@@ -35,21 +35,21 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     final userProvider = context.read<UserProvider>();
     final user = userProvider.user;
 
-    _name = TextEditingController(text: user?.displayName ?? '');
+    _name = TextEditingController(text: user?.displayName ?? user?.name ?? '');
+
+    final weight = user?.weightKg;
     _weight = TextEditingController(
-      text:
-          user?.weightKg != null && user!.weightKg > 0
-              ? user.weightKg.toString()
-              : '',
+      text: (weight != null && weight > 0) ? weight.toString() : '',
     );
+
+    final height = user?.heightCm;
     _height = TextEditingController(
-      text:
-          user?.heightCm != null && user!.heightCm > 0
-              ? user.heightCm.toString()
-              : '',
+      text: (height != null && height > 0) ? height.toString() : '',
     );
+
+    final avatarUrl = user?.avatarUrl;
     _avatar =
-        user?.avatarUrl.isNotEmpty == true ? user!.avatarUrl : _avatars.first;
+        (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : _avatars.first;
   }
 
   @override
@@ -80,7 +80,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
 
       // Update user via API
       final updatedUser = await UserService.updateUser(
-        userId: user.id,
+        userId: user.id.toString(),
         displayName: name,
         avatarUrl: _avatar,
         weightKg: weight,
@@ -174,7 +174,7 @@ class _ProfileSettingsPageState extends State<ProfileSettingsPage> {
     if (confirm != true) return;
 
     try {
-      await UserService.deleteUser(user.id);
+      await UserService.deleteUser(user.id.toString());
       await AuthService.logout();
 
       if (mounted) {

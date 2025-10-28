@@ -1,10 +1,12 @@
 class User {
-  final int id;
+  final String id;
   final String name;
   final String email;
   final int level;
   final int xp;
   final String? avatarUrl;
+  final double? weightKg;
+  final double? heightCm;
 
   User({
     required this.id,
@@ -13,17 +15,21 @@ class User {
     required this.level,
     required this.xp,
     this.avatarUrl,
+    this.weightKg,
+    this.heightCm,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id'] ?? 0,
+      id: json['id'],
       name:
           json['displayName'] ?? json['name'] ?? '', // Backend uses displayName
       email: json['email'] ?? '',
       level: json['level'] ?? 1,
       xp: json['xp'] ?? 0,
-      avatarUrl: json['avatarUrl'],
+      avatarUrl: json['avatarUrl'] as String?,
+      weightKg: (json['weightKg'] as num?)?.toDouble(),
+      heightCm: (json['heightCm'] as num?)?.toDouble(),
     );
   }
 
@@ -35,8 +41,12 @@ class User {
       'level': level,
       'xp': xp,
       'avatarUrl': avatarUrl,
+      'weightKg': weightKg,
+      'heightCm': heightCm,
     };
   }
 
   int get nextLevelXp => level * 100;
+
+  String get displayName => name;
 }

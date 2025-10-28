@@ -38,21 +38,33 @@ class RootShell extends StatefulWidget {
 class _RootShellState extends State<RootShell> {
   int index = 0;
 
-  final pages = const [
-    HomePage(),
-    QuestsPage(),
-    QuestTrackerPage(),
-    LeaderboardPage(),
-    SettingsPage(),
-  ];
+  final GlobalKey<HomePageState> _homePageKey = GlobalKey<HomePageState>();
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      HomePage(key: _homePageKey),
+      const QuestsPage(),
+      const QuestTrackerPage(),
+      const LeaderboardPage(),
+      const SettingsPage(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: index, children: pages),
+      body: IndexedStack(index: index, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
-        onDestinationSelected: (i) => setState(() => index = i),
+        onDestinationSelected: (i) {
+          setState(() => index = i);
+          if (i == 0) {
+            _homePageKey.currentState?.refreshData();
+          }
+        },
         height: 64,
         destinations: const [
           NavigationDestination(

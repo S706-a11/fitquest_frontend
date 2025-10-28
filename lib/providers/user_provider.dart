@@ -62,6 +62,7 @@ class UserProvider with ChangeNotifier {
 
     try {
       _user = await AuthService.register(name, email, password);
+      print('user after registration: $_user');
       if (_user == null) {
         _error = 'Registration failed';
         _isLoading = false;
@@ -106,7 +107,8 @@ class UserProvider with ChangeNotifier {
     if (_user == null) return;
 
     try {
-      final response = await ApiService.getUserById(_user!.id);
+      final response = await ApiService.getUserById(int.parse(_user!.id));
+
       _user = User.fromJson(response);
       notifyListeners();
     } catch (e) {
@@ -130,7 +132,7 @@ class UserProvider with ChangeNotifier {
       }
 
       await ApiService.updateUser(
-        userId: _user!.id,
+        userId: int.parse(_user!.id),
         level: newLevel,
         xp: remainingXp,
       );
@@ -139,5 +141,17 @@ class UserProvider with ChangeNotifier {
     } catch (e) {
       print('Error updating XP: $e');
     }
+  }
+
+  // Manually set user (e.g. after profile update)
+  void setUser(User user) {
+    _user = user;
+    notifyListeners();
+  }
+
+  // Clear user data (e.g. on logout/delete)
+  void clearUser() {
+    _user = null;
+    notifyListeners();
   }
 }

@@ -275,7 +275,7 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
 
       // Log the exercise session
       await ExerciseService.logExerciseSession(
-        userId: userId,
+        userId: userId.toString(),
         exerciseType: widget.exerciseType,
         duration: elapsed.inSeconds,
         distance: _distance > 0 ? _distance : null,

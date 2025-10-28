@@ -84,7 +84,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     try {
       print('Loading exercises for quest: ${widget.questId} (user: $userId)');
       final exercises = await QuestService.getQuestExercises(
-        userId: userId,
+        userId: userId.toString(),
         questId: widget.questId,
       );
       print('Loaded ${exercises.length} quest exercises');
@@ -206,7 +206,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
     try {
       print('Calling ExerciseService.createExercise...');
       await ExerciseService.createExercise(
-        userId: userId,
+        userId: userId.toString(),
         exerciseTypeId: exerciseTypeId,
         questId: widget.questId,
       );
@@ -456,7 +456,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
 
     try {
       // Load user's exercises for selection
-      final all = await ExerciseService.getUserExercises(userId);
+      final all = await ExerciseService.getUserExercises(userId.toString());
       final selected = await _showReuseDialog(all);
       if (selected == null || selected.isEmpty) return;
 
@@ -505,7 +505,7 @@ class _LinkExerciseToQuestPageState extends State<LinkExerciseToQuestPage> {
           continue;
         }
         await ExerciseService.createExercise(
-          userId: userId,
+          userId: userId.toString(),
           exerciseTypeId: typeId,
           questId: widget.questId,
           // Copy common planning fields if present

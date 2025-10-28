@@ -75,7 +75,10 @@ class _AvailableQuestsPageState extends State<AvailableQuestsPage> {
     if (userId == null) return;
 
     try {
-      await QuestService.claimQuest(userId: userId, templateId: template.id);
+      await QuestService.claimQuest(
+        userId: userId.toString(),
+        templateId: template.id,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
