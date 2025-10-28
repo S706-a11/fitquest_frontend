@@ -107,7 +107,7 @@ class UserProvider with ChangeNotifier {
     if (_user == null) return;
 
     try {
-      final response = await ApiService.getUserById(int.parse(_user!.id));
+      final response = await ApiService.getUserById(_user!.id);
 
       _user = User.fromJson(response);
       notifyListeners();
@@ -132,7 +132,7 @@ class UserProvider with ChangeNotifier {
       }
 
       await ApiService.updateUser(
-        userId: int.parse(_user!.id),
+        userId: _user!.id,
         level: newLevel,
         xp: remainingXp,
       );

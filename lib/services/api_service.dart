@@ -52,23 +52,37 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  static Future<Map<String, dynamic>> getUserById(int userId) async {
+  static Future<Map<String, dynamic>> getUserById(String userId) async {
     final response = await http.get(Uri.parse('$baseUrl/users/$userId'));
     return _handleResponse(response);
   }
 
   static Future<Map<String, dynamic>> updateUser({
-    required int userId,
-    String? name,
-    String? email,
+    required String userId,
+    String? displayName,
+    String? avatarUrl,
     int? level,
     int? xp,
+    int? streakCount,
+    num? weightKg,
+    num? heightCm,
+    String? password,
+    String? email,
   }) async {
     final body = <String, dynamic>{};
-    if (name != null) body['displayName'] = name; // Backend expects displayName
-    if (email != null) body['email'] = email;
+    if (displayName != null) body['displayName'] = displayName;
+    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
     if (level != null) body['level'] = level;
     if (xp != null) body['xp'] = xp;
+    if (streakCount != null) body['streakCount'] = streakCount;
+    if (weightKg != null) body['weightKg'] = weightKg;
+    if (heightCm != null) body['heightCm'] = heightCm;
+    if (password != null) body['password'] = password;
+    if (email != null) body['email'] = email;
+
+    if (body.isEmpty) {
+      throw ArgumentError('At least one field must be provided to updateUser');
+    }
 
     final response = await http.put(
       Uri.parse('$baseUrl/users/$userId'),
