@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/daily_goal.dart';
+import '../models/monthly_goal.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/xp_bar.dart';
@@ -18,6 +19,9 @@ class HomePageState extends State<HomePage> {
   DailyGoal? _latestDailyGoal;
   bool _isLoadingDailyGoal = true;
   String? _dailyGoalError;
+  MonthlyGoal? _currentMonthlyGoal;
+  bool _isLoadingMonthlyGoal = true;
+  String? _monthlyGoalError;
   String? _loadedUserId;
 
   @override
@@ -38,11 +42,13 @@ class HomePageState extends State<HomePage> {
       _loadedUserId = userId;
       _loadActiveQuests();
       _loadDailyGoal();
+      _loadMonthlyGoal();
     }
   }
 
   Future<void> _refreshAll() async {
     await _loadDailyGoal();
+    await _loadMonthlyGoal();
     await _loadActiveQuests();
   }
 
@@ -170,6 +176,83 @@ class HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _loadMonthlyGoal() async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final user = userProvider.user;
+    if (!mounted) return;
+
+    if (user == null) {
+      setState(() {
+        _currentMonthlyGoal = null;
+        _isLoadingMonthlyGoal = false;
+        _monthlyGoalError = null;
+      });
+      return;
+    }
+
+    if (user.id.isEmpty) {
+      setState(() {
+        _currentMonthlyGoal = null;
+        _isLoadingMonthlyGoal = false;
+        _monthlyGoalError = 'Could not load monthly goal';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingMonthlyGoal = true;
+      _monthlyGoalError = null;
+    });
+
+    try {
+      final goalsResponse = await ApiService.getMonthlyGoals();
+      final userId = user.id.toLowerCase();
+      final goals = goalsResponse
+          .whereType<Map<String, dynamic>>()
+          .map(MonthlyGoal.fromJson)
+          .where((goal) =>
+              goal.userId.isNotEmpty && goal.userId.toLowerCase() == userId)
+          .toList();
+
+      goals.sort((a, b) {
+        final yearCompare = b.year.compareTo(a.year);
+        if (yearCompare != 0) return yearCompare;
+        return b.month.compareTo(a.month);
+      });
+
+      final now = DateTime.now();
+      MonthlyGoal? matchingGoal;
+      for (final goal in goals) {
+        if (goal.year == now.year && goal.month == now.month) {
+          matchingGoal = goal;
+          break;
+        }
+      }
+
+      if (matchingGoal == null) {
+        final createdGoal = await _createMonthlyGoalForCurrentMonth(user.id, now);
+        if (!mounted) return;
+        if (createdGoal != null) {
+          matchingGoal = createdGoal;
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _currentMonthlyGoal = matchingGoal ?? (goals.isNotEmpty ? goals.first : null);
+        _isLoadingMonthlyGoal = false;
+        _monthlyGoalError = _currentMonthlyGoal == null ? 'Could not load monthly goal' : null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _monthlyGoalError = 'Could not load monthly goal';
+        _isLoadingMonthlyGoal = false;
+      });
+      debugPrint('Error loading monthly goal: $e');
+    }
+  }
+
   Future<DailyGoal?> _createDailyGoalForToday(String userId) async {
     try {
       final response = await ApiService.createDailyGoal(
@@ -182,6 +265,26 @@ class HomePageState extends State<HomePage> {
       return DailyGoal.fromJson(response);
     } catch (e) {
       debugPrint('Error creating daily goal: $e');
+      return null;
+    }
+  }
+
+  Future<MonthlyGoal?> _createMonthlyGoalForCurrentMonth(
+    String userId,
+    DateTime now,
+  ) async {
+    try {
+      final response = await ApiService.createMonthlyGoal(
+        userId: userId,
+        year: now.year,
+        month: now.month,
+        targetMinutes: 1200,
+        targetReps: 2000,
+        targetDistanceM: 100000,
+      );
+      return MonthlyGoal.fromJson(response);
+    } catch (e) {
+      debugPrint('Error creating monthly goal: $e');
       return null;
     }
   }
@@ -294,6 +397,42 @@ class HomePageState extends State<HomePage> {
 
                       const SizedBox(height: 24),
                       const Text(
+                        'Monthly Goal',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      if (_isLoadingMonthlyGoal)
+                        const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20.0),
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else if (_monthlyGoalError != null)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              _monthlyGoalError!,
+                              style: const TextStyle(color: Colors.redAccent),
+                            ),
+                          ),
+                        )
+                      else if (_currentMonthlyGoal == null)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              'No monthly goal set yet. Visit the goals section to create one.',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        )
+                      else
+                        _monthlyGoalCard(_currentMonthlyGoal!),
+
+                      const SizedBox(height: 24),
+                      const Text(
                         'Active Quests',
                         style: TextStyle(fontWeight: FontWeight.w700),
                       ),
@@ -356,6 +495,73 @@ class HomePageState extends State<HomePage> {
               ),
               Text(
                 goal.formattedDate,
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white10,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              goal.statusLabel,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+    ];
+
+    if (metrics.isEmpty) {
+      children.add(
+        const Text(
+          'Targets are not set for this goal yet.',
+          style: TextStyle(color: Colors.white70),
+        ),
+      );
+    } else {
+      for (var i = 0; i < metrics.length; i++) {
+        children.add(metrics[i]);
+        if (i < metrics.length - 1) {
+          children.add(const SizedBox(height: 12));
+        }
+      }
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _monthlyGoalCard(MonthlyGoal goal) {
+    final metrics = <Widget?>[
+      _goalMetricRow('Minutes', goal.progressMinutes, goal.targetMinutes, unit: 'min'),
+      _goalMetricRow('Reps', goal.progressReps, goal.targetReps),
+      _goalMetricRow('Distance', goal.progressDistanceM, goal.targetDistanceM, unit: 'm'),
+    ].whereType<Widget>().toList();
+
+    final children = <Widget>[
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'This Month\'s Goal',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                goal.formattedMonth,
                 style: const TextStyle(fontSize: 12, color: Colors.white70),
               ),
             ],

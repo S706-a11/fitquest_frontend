@@ -112,6 +112,45 @@ class ApiService {
     return _handleResponse(response);
   }
 
+  // Monthly goal endpoints
+  static Future<List<dynamic>> getMonthlyGoals() async {
+    final response = await http.get(Uri.parse('$baseUrl/monthly-goals'));
+    if (response.statusCode == 200) {
+      final body = json.decode(response.body);
+      if (body is List) {
+        return body;
+      }
+      throw Exception('Unexpected monthly goals response format');
+    }
+    throw Exception('Failed to load monthly goals');
+  }
+
+  static Future<Map<String, dynamic>> createMonthlyGoal({
+    required String userId,
+    required int year,
+    required int month,
+    int targetMinutes = 1200,
+    int targetReps = 2000,
+    int targetDistanceM = 100000,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/monthly-goals'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'userId': userId,
+        'year': year,
+        'month': month,
+        'targetMinutes': targetMinutes,
+        'targetReps': targetReps,
+        'targetDistanceM': targetDistanceM,
+        'progressMinutes': 0,
+        'progressReps': 0,
+        'progressDistanceM': 0,
+      }),
+    );
+    return _handleResponse(response);
+  }
+
   // Quest endpoints
   static Future<List<dynamic>> getUserQuests(int userId) async {
     final response = await http.get(Uri.parse('$baseUrl/users/$userId/quests'));
