@@ -55,7 +55,7 @@ class AuthService {
   // Get current user from local storage
   static Future<User?> getCurrentUser() async {
     final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt(_userIdKey);
+    final userId = prefs.getString(_userIdKey);
 
     if (userId == null) return null;
 
@@ -71,11 +71,12 @@ class AuthService {
 
       if (name != null && email != null) {
         return User(
-          id: userId.toString(),
+          id: userId,
           name: name,
           email: email,
           level: 1,
           xp: 0,
+          streakCount: 0,
         );
       }
       return null;

@@ -7,6 +7,7 @@ class User {
   final String? avatarUrl;
   final double? weightKg;
   final double? heightCm;
+  final int streakCount;
 
   User({
     required this.id,
@@ -17,6 +18,7 @@ class User {
     this.avatarUrl,
     this.weightKg,
     this.heightCm,
+    this.streakCount = 0,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -30,6 +32,7 @@ class User {
       avatarUrl: json['avatarUrl'] as String?,
       weightKg: (json['weightKg'] as num?)?.toDouble(),
       heightCm: (json['heightCm'] as num?)?.toDouble(),
+      streakCount: (json['streakCount'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -43,6 +46,7 @@ class User {
       'avatarUrl': avatarUrl,
       'weightKg': weightKg,
       'heightCm': heightCm,
+      'streakCount': streakCount,
     };
   }
 
