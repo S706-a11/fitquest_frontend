@@ -25,7 +25,9 @@ class _HomePageState extends State<HomePage> {
     final userProvider = Provider.of<UserProvider>(context, listen: false);
     if (userProvider.user != null) {
       try {
-        final quests = await ApiService.getActiveQuests(userProvider.user!.id);
+        final quests = await ApiService.getActiveQuests(
+          int.parse(userProvider.user!.id),
+        );
         setState(() {
           _activeQuests = quests;
           _isLoadingQuests = false;

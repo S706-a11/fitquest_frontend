@@ -43,7 +43,7 @@ class _ExerciseHistoryPageState extends State<ExerciseHistoryPage> {
 
     try {
       final sessions = await ExerciseService.getUserExerciseSessions(
-        userId: userId,
+        userId: userId.toString(),
         exerciseType: _selectedType == 'All' ? null : _selectedType,
       );
 

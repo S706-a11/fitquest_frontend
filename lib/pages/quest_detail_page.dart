@@ -341,11 +341,11 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
     try {
       final questData = await QuestService.getQuestById(
-        userId: userId,
+        userId: userId.toString(),
         questId: widget.questId,
       );
       final exercises = await QuestService.getQuestExercises(
-        userId: userId,
+        userId: userId.toString(),
         questId: widget.questId,
       );
 
@@ -382,14 +382,14 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
       try {
         await QuestService.toggleQuestStatus(
-          userId: userId,
+          userId: userId.toString(),
           questId: widget.questId,
           completed: true, // Explicitly mark as completed
         );
 
         // Reload to get updated quest status
         final questData = await QuestService.getQuestById(
-          userId: userId,
+          userId: userId.toString(),
           questId: widget.questId,
         );
 
@@ -406,7 +406,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
           final currentUser = context.read<UserProvider>().user;
           if (currentUser != null && currentUser.xp == beforeXp) {
             try {
-              await UserService.addXp(userId: userId, xpAmount: reward);
+              await UserService.addXp(
+                userId: userId.toString(),
+                xpAmount: reward,
+              );
               await userProvider.refreshUser();
             } catch (e) {
               print('Failed to add XP via fallback: $e');
@@ -517,7 +520,10 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
     if (confirm != true) return;
 
     try {
-      await QuestService.deleteQuest(userId: userId, questId: widget.questId);
+      await QuestService.deleteQuest(
+        userId: userId.toString(),
+        questId: widget.questId,
+      );
 
       Navigator.pop(context, true); // Return true to indicate refresh needed
       ScaffoldMessenger.of(context).showSnackBar(
@@ -538,7 +544,7 @@ class _QuestDetailPageState extends State<QuestDetailPage> {
 
     try {
       await QuestService.removeExerciseFromQuest(
-        userId: userId,
+        userId: userId.toString(),
         questId: widget.questId,
         exerciseId: exerciseId,
       );

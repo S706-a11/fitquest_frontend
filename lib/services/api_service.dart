@@ -28,13 +28,26 @@ class ApiService {
     String? password,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/users'),
+      Uri.parse('$baseUrl/users/register'),
       headers: {'Content-Type': 'application/json'},
       body: json.encode({
         'displayName': name, // Backend expects displayName
         'email': email,
         'password': password,
       }),
+    );
+    return _handleResponse(response);
+  }
+
+  //login
+  static Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
     );
     return _handleResponse(response);
   }

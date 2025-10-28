@@ -47,8 +47,10 @@ class _QuestsPageState extends State<QuestsPage>
     }
 
     try {
-      final activeQuestsData = await QuestService.getActiveQuests(userId);
-      final completedQuestsData = await QuestService.getCompletedQuests(userId);
+      final activeQuestsData =
+          await QuestService.getActiveQuests(userId.toString());
+      final completedQuestsData =
+          await QuestService.getCompletedQuests(userId.toString());
 
       setState(() {
         _activeQuests = activeQuestsData.map((q) => Quest.fromJson(q)).toList();
