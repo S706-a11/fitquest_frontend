@@ -8,6 +8,7 @@ import '../services/exercise_service.dart';
 import '../services/daily_goal_service.dart';
 import '../services/monthly_goal_service.dart';
 import '../services/api_service.dart';
+import '../services/quest_service.dart';
 import '../providers/user_provider.dart';
 import '../models/daily_goal.dart';
 import '../models/monthly_goal.dart';
@@ -164,7 +165,13 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
       return;
     }
 
-    _showSaveDialog();
+    // Directly compute XP and save without confirmation dialog
+    final distanceKm = _distance / 1000;
+    final baseXp = (elapsed.inMinutes * 10).toInt();
+    final distanceBonus = (distanceKm * 20).toInt();
+    final totalXp = widget.xpOverride ?? (baseXp + distanceBonus);
+
+    await _saveWorkout(totalXp);
   }
 
   void _reset() {
@@ -199,54 +206,7 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
     );
   }
 
-  void _showSaveDialog() {
-    final distanceKm = _distance / 1000;
-    final avgSpeed = _speed;
-    final pace = avgSpeed > 0 ? 60 / avgSpeed : 0; // min/km
-
-    // XP calculation: base (duration) + distance bonus
-    final baseXp = (elapsed.inMinutes * 10).toInt();
-    final distanceBonus = (distanceKm * 20).toInt();
-    final totalXp = widget.xpOverride ?? (baseXp + distanceBonus);
-
-    showDialog(
-      context: context,
-      builder:
-          (ctx) => AlertDialog(
-            title: const Text('Save Workout?'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Duration: ${_hhmmss(elapsed)}'),
-                if (_shouldShowMap()) ...[
-                  Text('Distance: ${distanceKm.toStringAsFixed(2)} km'),
-                  Text('Avg Speed: ${avgSpeed.toStringAsFixed(1)} km/h'),
-                  Text('Avg Pace: ${pace.toStringAsFixed(1)} min/km'),
-                ],
-                const SizedBox(height: 8),
-                Text(
-                  'XP Earned: $totalXp',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _saveWorkout(totalXp);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-    );
-  }
+  // Note: Previously showed a confirmation dialog here. Now we save directly on finish.
 
   Future<void> _saveWorkout(int xp) async {
     final userProvider = context.read<UserProvider>();
@@ -279,7 +239,7 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
       );
 
       // Log the exercise session
-      await ExerciseService.logExerciseSession(
+      final sessionResult = await ExerciseService.logExerciseSession(
         userId: userId.toString(),
         exerciseType: widget.exerciseType,
         duration: elapsed.inSeconds,
@@ -295,20 +255,43 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
         },
       );
 
+      // Try to extract an exerciseId (if backend returns one) for richer linkage
+      int? sessionExerciseId;
+      try {
+        final dynamic idDyn =
+            sessionResult['exerciseId'] ?? sessionResult['id'];
+        if (idDyn is int) {
+          sessionExerciseId = idDyn;
+        } else if (idDyn != null) {
+          sessionExerciseId = int.tryParse(idDyn.toString());
+        }
+      } catch (_) {}
+
       // After saving, attempt to update today's daily goal progress
       await _recomputeTodaysDailyGoalIfExists(userId);
 
       // Also recompute this month's monthly goal progress (best-effort)
       await _recomputeThisMonthsMonthlyGoalIfExists(userId);
 
+      // Apply this workout's duration (and distance/calories if present) to all active quests
+      await _applyWorkoutToActiveQuests(
+        userId: userId,
+        durationSec: elapsed.inSeconds,
+        distanceM: _distance > 0 ? _distance : null,
+        calories: calories,
+        exerciseId: sessionExerciseId,
+      );
+
       if (mounted) {
+        // Reset tracker UI immediately and show completion text
+        _reset();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Workout saved! +$xp XP'),
+            content: Text('Workout completed! +$xp XP'),
             backgroundColor: Colors.green,
           ),
         );
-        Navigator.of(context).pop(true); // Return true to indicate success
+        // Do not pop the page; keep user on tracker with timer reset
       }
     } catch (e) {
       print('Error saving workout: $e');
@@ -320,6 +303,37 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _applyWorkoutToActiveQuests({
+    required String userId,
+    required int durationSec,
+    double? distanceM,
+    int? calories,
+    int? exerciseId,
+  }) async {
+    try {
+      final active = await QuestService.getActiveQuests(userId);
+      if (active.isEmpty) return;
+
+      for (final q in active) {
+        final qid = int.tryParse(q['id']?.toString() ?? '');
+        if (qid == null) continue;
+        try {
+          await ExerciseService.submitQuestExerciseProgress(
+            questId: qid,
+            exerciseId: exerciseId,
+            duration: durationSec,
+            distance: distanceM,
+            calories: calories,
+          );
+        } catch (_) {
+          // Continue with other quests even if one fails
+        }
+      }
+    } catch (_) {
+      // Silently ignore; this is best-effort to keep UX smooth
     }
   }
 

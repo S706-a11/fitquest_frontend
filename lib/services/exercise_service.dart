@@ -273,11 +273,96 @@ class ExerciseService {
     // Remove null values
     body.removeWhere((key, value) => value == null);
 
+    final uri = Uri.parse('$baseUrl/exercises/sessions');
     final response = await http.post(
-      Uri.parse('$baseUrl/exercises/sessions'),
+      uri,
       headers: {'Content-Type': 'application/json'},
       body: json.encode(body),
     );
+
+    // If the endpoint isn't implemented, gracefully fall back to creating a basic exercise
+    if (response.statusCode == 404 ||
+        response.statusCode == 405 ||
+        response.statusCode == 501) {
+      // Attempt to map the exerciseType string to an existing exerciseTypeId
+      int? typeId;
+      try {
+        final types = await getExerciseTypes();
+        final normalized = exerciseType.toLowerCase();
+        int? matchId;
+        // Try exact and contains matches
+        for (final t in types) {
+          final name = (t['name']?.toString() ?? '').toLowerCase();
+          if (name == normalized ||
+              name.contains(normalized) ||
+              normalized.contains(name)) {
+            final idDyn = t['id'];
+            if (idDyn is int)
+              matchId = idDyn;
+            else
+              matchId = int.tryParse(idDyn?.toString() ?? '');
+            if (matchId != null) break;
+          }
+        }
+        // Common synonyms fallback
+        if (matchId == null) {
+          for (final t in types) {
+            final name = (t['name']?.toString() ?? '').toLowerCase();
+            if (normalized.contains('run') && name.contains('run')) {
+              matchId = int.tryParse(t['id'].toString());
+              break;
+            }
+            if ((normalized.contains('cycle') || normalized.contains('bike')) &&
+                (name.contains('cycle') || name.contains('bike'))) {
+              matchId = int.tryParse(t['id'].toString());
+              break;
+            }
+            if (normalized.contains('swim') && name.contains('swim')) {
+              matchId = int.tryParse(t['id'].toString());
+              break;
+            }
+            if (normalized.contains('strength') && name.contains('strength')) {
+              matchId = int.tryParse(t['id'].toString());
+              break;
+            }
+          }
+        }
+        typeId = matchId;
+      } catch (_) {
+        typeId = null;
+      }
+
+      if (typeId == null) {
+        // As a last resort, try the first type
+        try {
+          final types = await getExerciseTypes();
+          if (types.isNotEmpty) {
+            typeId = int.tryParse(types.first['id'].toString());
+          }
+        } catch (_) {}
+      }
+
+      if (typeId == null) {
+        throw Exception(
+          'Unable to map exerciseType "$exerciseType" to an exerciseTypeId for fallback',
+        );
+      }
+
+      // Create a simple exercise using start/end timestamps derived from duration
+      final endAt = DateTime.now().toUtc();
+      final startAt = endAt.subtract(Duration(seconds: duration));
+      final created = await createExercise(
+        userId: userId,
+        exerciseTypeId: typeId,
+        note:
+            'Auto-logged session (fallback) — duration: ${duration}s, distance: ${distance ?? 0}m, calories: ${calories ?? 0}',
+        startAt: startAt,
+        endAt: endAt,
+        questId: questId,
+      );
+      // Include a marker so caller knows this came from fallback path
+      return {...created, 'fromFallback': true};
+    }
 
     return _handleResponse(response);
   }
@@ -380,25 +465,22 @@ class ExerciseService {
   /// Submit exercise progress for a quest
   static Future<Map<String, dynamic>> submitQuestExerciseProgress({
     required int questId,
-    required int exerciseId,
+    int? exerciseId,
     required int duration,
     double? distance,
     int? reps,
     double? weight,
     int? calories,
   }) async {
-    final body = {
-      'ExerciseId': exerciseId,
+    final body = <String, dynamic>{
+      if (exerciseId != null) 'ExerciseId': exerciseId,
       'Duration': duration,
       'Distance': distance,
       'Reps': reps,
       'Weight': weight,
       'Calories': calories,
       'CompletedAt': DateTime.now().toUtc().toIso8601String(),
-    };
-
-    // Remove null values
-    body.removeWhere((key, value) => value == null);
+    }..removeWhere((key, value) => value == null);
 
     final response = await http.post(
       Uri.parse('$baseUrl/quests/$questId/progress'),
