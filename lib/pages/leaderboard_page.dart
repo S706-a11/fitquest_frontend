@@ -16,11 +16,19 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   @override
   void initState() {
     super.initState();
-  _leaderboardFuture = UserService.getLeaderboard(metric: _metric, limit: _limit);
+    _leaderboardFuture = UserService.getLeaderboard(
+      metric: _metric,
+      limit: _limit,
+    );
   }
 
   String _displayName(Map<String, dynamic> item) {
-    return (item['displayName'] ?? item['name'] ?? item['username'] ?? item['email'] ?? 'Unknown').toString();
+    return (item['displayName'] ??
+            item['name'] ??
+            item['username'] ??
+            item['email'] ??
+            'Unknown')
+        .toString();
   }
 
   int _level(Map<String, dynamic> item) {
@@ -39,7 +47,8 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
   }
 
   String? _avatar(Map<String, dynamic> item) {
-    return (item['avatarUrl'] ?? item['avatar'] ?? item['photoUrl'])?.toString();
+    return (item['avatarUrl'] ?? item['avatar'] ?? item['photoUrl'])
+        ?.toString();
   }
 
   @override
@@ -48,7 +57,11 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
       appBar: AppBar(
         title: const Text(
           'LEADERBOARD',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
         ),
       ),
       body: FutureBuilder<List<dynamic>>(
@@ -67,7 +80,12 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
                     Text('Failed to load leaderboard: ${snap.error}'),
                     const SizedBox(height: 12),
                     ElevatedButton(
-                      onPressed: () => setState(() => _leaderboardFuture = UserService.getLeaderboard()),
+                      onPressed:
+                          () => setState(
+                            () =>
+                                _leaderboardFuture =
+                                    UserService.getLeaderboard(),
+                          ),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -81,88 +99,143 @@ class _LeaderboardPageState extends State<LeaderboardPage> {
             return const Center(child: Text('No leaderboard data'));
           }
 
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      const Text('Metric: '),
-                      const SizedBox(width: 8),
-                      DropdownButton<String>(
-                        value: _metric,
-                        items: const [
-                          DropdownMenuItem(value: 'level', child: Text('Level')),
-                          DropdownMenuItem(value: 'xp', child: Text('XP')),
-                          DropdownMenuItem(value: 'streak', child: Text('Streak')),
-                        ],
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            _metric = v;
-                            _leaderboardFuture = UserService.getLeaderboard(metric: _metric, limit: _limit);
-                          });
-                        },
-                      ),
-                      const Spacer(),
-                      const Text('Limit:'),
-                      const SizedBox(width: 8),
-                      DropdownButton<int>(
-                        value: _limit,
-                        items: const [10, 25, 50, 100].map((n) => DropdownMenuItem(value: n, child: Text('$n'))).toList(),
-                        onChanged: (v) {
-                          if (v == null) return;
-                          setState(() {
-                            _limit = v;
-                            _leaderboardFuture = UserService.getLeaderboard(metric: _metric, limit: _limit);
-                          });
-                        },
-                      ),
-                    ],
-                  ),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final raw = list[i];
-                      final item = raw is Map<String, dynamic> ? raw : (raw as dynamic).toJson?.call() ?? {} as Map<String, dynamic>;
-                      final rank = item['rank'] ?? (i + 1);
-                      final userMap = item['user'] is Map ? item['user'] as Map<String, dynamic> : (item['user'] != null ? (item['user'] as dynamic).toJson?.call() ?? {} as Map<String, dynamic> : <String, dynamic>{});
-                      final name = _displayName(userMap);
-                      final level = item['level'] ?? item['Level'] ?? _level(userMap);
-                      final xp = item['xp'] ?? item['Xp'] ?? _xp(userMap);
-                      final streak = item['streakCount'] ?? item['streak'] ?? item['StreakCount'] ?? 0;
-                      final score = item['score'] ?? item['Score'] ?? (item[_metric] ?? xp ?? 0);
-                      final avatar = _avatar(userMap);
-
-                      return Card(
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundImage: avatar != null && avatar.isNotEmpty
-                                ? NetworkImage(avatar)
-                                : NetworkImage('https://i.pravatar.cc/150?img=${(i % 70) + 1}'),
-                          ),
-                          title: Text('$name  ·  Lv-$level'),
-                          subtitle: Text('$xp XP · Streak: $streak'),
-                          trailing: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text('#$rank', style: const TextStyle(fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 6),
-                              Text('$score', style: const TextStyle(fontSize: 12)),
-                              Text(_metric.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                            ],
-                          ),
+                child: Row(
+                  children: [
+                    const Text('Metric: '),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: _metric,
+                      items: const [
+                        DropdownMenuItem(value: 'level', child: Text('Level')),
+                        DropdownMenuItem(value: 'xp', child: Text('XP')),
+                        DropdownMenuItem(
+                          value: 'streak',
+                          child: Text('Streak'),
                         ),
-                      );
-                    },
-                  ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _metric = v;
+                          _leaderboardFuture = UserService.getLeaderboard(
+                            metric: _metric,
+                            limit: _limit,
+                          );
+                        });
+                      },
+                    ),
+                    const Spacer(),
+                    const Text('Limit:'),
+                    const SizedBox(width: 8),
+                    DropdownButton<int>(
+                      value: _limit,
+                      items:
+                          const [10, 25, 50, 100]
+                              .map(
+                                (n) => DropdownMenuItem(
+                                  value: n,
+                                  child: Text('$n'),
+                                ),
+                              )
+                              .toList(),
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() {
+                          _limit = v;
+                          _leaderboardFuture = UserService.getLeaderboard(
+                            metric: _metric,
+                            limit: _limit,
+                          );
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            );
+              ),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final raw = list[i];
+                    final item =
+                        raw is Map<String, dynamic>
+                            ? raw
+                            : (raw as dynamic).toJson?.call() ??
+                                {} as Map<String, dynamic>;
+                    final rank = item['rank'] ?? (i + 1);
+                    final userMap =
+                        item['user'] is Map
+                            ? item['user'] as Map<String, dynamic>
+                            : (item['user'] != null
+                                ? (item['user'] as dynamic).toJson?.call() ??
+                                    {} as Map<String, dynamic>
+                                : <String, dynamic>{});
+                    final name = _displayName(userMap);
+                    final level =
+                        item['level'] ?? item['Level'] ?? _level(userMap);
+                    final xp = item['xp'] ?? item['Xp'] ?? _xp(userMap);
+                    final streak =
+                        item['streakCount'] ??
+                        item['streak'] ??
+                        item['StreakCount'] ??
+                        0;
+                    final score =
+                        item['score'] ??
+                        item['Score'] ??
+                        (item[_metric] ?? xp ?? 0);
+                    final avatar = _avatar(userMap);
+
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage:
+                              avatar != null && avatar.isNotEmpty
+                                  ? NetworkImage(avatar)
+                                  : NetworkImage(
+                                    'https://i.pravatar.cc/150?img=${(i % 70) + 1}',
+                                  ),
+                        ),
+                        title: Text('$name  ·  Lv-$level'),
+                        subtitle: Text('$xp XP · Streak: $streak'),
+                        trailing: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '#$rank',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '$score',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                            Text(
+                              _metric.toUpperCase(),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
         },
       ),
     );
