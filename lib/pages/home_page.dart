@@ -4,6 +4,7 @@ import '../models/daily_goal.dart';
 import '../models/monthly_goal.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
+import '../services/daily_goal_service.dart';
 import '../widgets/xp_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -23,6 +24,7 @@ class HomePageState extends State<HomePage> {
   bool _isLoadingMonthlyGoal = true;
   String? _monthlyGoalError;
   String? _loadedUserId;
+  bool _isRecomputingDailyGoal = false;
 
   @override
   void initState() {
@@ -126,13 +128,16 @@ class HomePageState extends State<HomePage> {
     try {
       final goalsResponse = await ApiService.getDailyGoals();
       final userId = user.id.toLowerCase();
-      final goals = goalsResponse
-          .whereType<Map<String, dynamic>>()
-          .map(DailyGoal.fromJson)
-          .where((goal) =>
-              goal.userId.isNotEmpty &&
-              goal.userId.toLowerCase() == userId)
-          .toList();
+      final goals =
+          goalsResponse
+              .whereType<Map<String, dynamic>>()
+              .map(DailyGoal.fromJson)
+              .where(
+                (goal) =>
+                    goal.userId.isNotEmpty &&
+                    goal.userId.toLowerCase() == userId,
+              )
+              .toList();
 
       goals.sort((a, b) {
         final aDate = a.dateYmd ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -150,7 +155,8 @@ class HomePageState extends State<HomePage> {
         }
       }
 
-      DailyGoal? goalToDisplay = todaysGoal ?? (goals.isNotEmpty ? goals.first : null);
+      DailyGoal? goalToDisplay =
+          todaysGoal ?? (goals.isNotEmpty ? goals.first : null);
 
       if (todaysGoal == null) {
         final createdGoal = await _createDailyGoalForToday(user.id);
@@ -164,7 +170,8 @@ class HomePageState extends State<HomePage> {
       setState(() {
         _latestDailyGoal = goalToDisplay;
         _isLoadingDailyGoal = false;
-        _dailyGoalError = goalToDisplay == null ? 'Could not load daily goal' : null;
+        _dailyGoalError =
+            goalToDisplay == null ? 'Could not load daily goal' : null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -207,12 +214,16 @@ class HomePageState extends State<HomePage> {
     try {
       final goalsResponse = await ApiService.getMonthlyGoals();
       final userId = user.id.toLowerCase();
-      final goals = goalsResponse
-          .whereType<Map<String, dynamic>>()
-          .map(MonthlyGoal.fromJson)
-          .where((goal) =>
-              goal.userId.isNotEmpty && goal.userId.toLowerCase() == userId)
-          .toList();
+      final goals =
+          goalsResponse
+              .whereType<Map<String, dynamic>>()
+              .map(MonthlyGoal.fromJson)
+              .where(
+                (goal) =>
+                    goal.userId.isNotEmpty &&
+                    goal.userId.toLowerCase() == userId,
+              )
+              .toList();
 
       goals.sort((a, b) {
         final yearCompare = b.year.compareTo(a.year);
@@ -230,7 +241,10 @@ class HomePageState extends State<HomePage> {
       }
 
       if (matchingGoal == null) {
-        final createdGoal = await _createMonthlyGoalForCurrentMonth(user.id, now);
+        final createdGoal = await _createMonthlyGoalForCurrentMonth(
+          user.id,
+          now,
+        );
         if (!mounted) return;
         if (createdGoal != null) {
           matchingGoal = createdGoal;
@@ -239,9 +253,11 @@ class HomePageState extends State<HomePage> {
 
       if (!mounted) return;
       setState(() {
-        _currentMonthlyGoal = matchingGoal ?? (goals.isNotEmpty ? goals.first : null);
+        _currentMonthlyGoal =
+            matchingGoal ?? (goals.isNotEmpty ? goals.first : null);
         _isLoadingMonthlyGoal = false;
-        _monthlyGoalError = _currentMonthlyGoal == null ? 'Could not load monthly goal' : null;
+        _monthlyGoalError =
+            _currentMonthlyGoal == null ? 'Could not load monthly goal' : null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -322,153 +338,153 @@ class HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.all(16),
                       physics: const AlwaysScrollableScrollPhysics(),
                       children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 28,
-                            backgroundImage:
-                                user.avatarUrl != null
-                                    ? NetworkImage(user.avatarUrl!)
-                                    : const NetworkImage(
-                                      'https://i.pravatar.cc/150?img=1',
-                                    ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                user.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 28,
+                              backgroundImage:
+                                  user.avatarUrl != null
+                                      ? NetworkImage(user.avatarUrl!)
+                                      : const NetworkImage(
+                                        'https://i.pravatar.cc/150?img=1',
+                                      ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                                Text(
+                                  'Lv ${user.level}',
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        XPBar(
+                          xp: user.xp,
+                          level: user.level,
+                          nextLevelXp: user.nextLevelXp,
+                        ),
+
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Daily Goal',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_isLoadingDailyGoal)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_dailyGoalError != null)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                _dailyGoalError!,
+                                style: const TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+                          )
+                        else if (_latestDailyGoal == null)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                'No daily goal set yet. Visit the goals section to create one.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          )
+                        else
+                          _dailyGoalCard(_latestDailyGoal!),
+
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Monthly Goal',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_isLoadingMonthlyGoal)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_monthlyGoalError != null)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                _monthlyGoalError!,
+                                style: const TextStyle(color: Colors.redAccent),
+                              ),
+                            ),
+                          )
+                        else if (_currentMonthlyGoal == null)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                'No monthly goal set yet. Visit the goals section to create one.',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          )
+                        else
+                          _monthlyGoalCard(_currentMonthlyGoal!),
+
+                        const SizedBox(height: 24),
+                        const Text(
+                          'Active Quests',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                        const SizedBox(height: 8),
+                        if (_isLoadingQuests)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(20.0),
+                              child: CircularProgressIndicator(),
+                            ),
+                          )
+                        else if (_activeQuests.isEmpty)
+                          Card(
+                            child: Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Center(
+                                child: Text(
+                                  'No active quests. Go to Quests tab to create one!',
+                                  style: TextStyle(color: Colors.white70),
+                                  textAlign: TextAlign.center,
                                 ),
                               ),
-                              Text(
-                                'Lv ${user.level}',
-                                style: const TextStyle(color: Colors.white70),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      XPBar(
-                        xp: user.xp,
-                        level: user.level,
-                        nextLevelXp: user.nextLevelXp,
-                      ),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Daily Goal',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_isLoadingDailyGoal)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_dailyGoalError != null)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              _dailyGoalError!,
-                              style: const TextStyle(color: Colors.redAccent),
                             ),
-                          ),
-                        )
-                      else if (_latestDailyGoal == null)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              'No daily goal set yet. Visit the goals section to create one.',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                        )
-                      else
-                        _dailyGoalCard(_latestDailyGoal!),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Monthly Goal',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_isLoadingMonthlyGoal)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_monthlyGoalError != null)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              _monthlyGoalError!,
-                              style: const TextStyle(color: Colors.redAccent),
-                            ),
-                          ),
-                        )
-                      else if (_currentMonthlyGoal == null)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Text(
-                              'No monthly goal set yet. Visit the goals section to create one.',
-                              style: TextStyle(color: Colors.white70),
-                            ),
-                          ),
-                        )
-                      else
-                        _monthlyGoalCard(_currentMonthlyGoal!),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Active Quests',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 8),
-                      if (_isLoadingQuests)
-                        const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20.0),
-                            child: CircularProgressIndicator(),
-                          ),
-                        )
-                      else if (_activeQuests.isEmpty)
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: Center(
-                              child: Text(
-                                'No active quests. Go to Quests tab to create one!',
-                                style: TextStyle(color: Colors.white70),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        ..._activeQuests.map((quest) {
-                          final progress = quest['progress'] ?? 0.0;
-                          final progressValue =
-                              progress is int ? progress / 100.0 : progress;
-                          return _progressTile(
-                            quest['title'] ?? 'Quest',
-                            progressValue is double ? progressValue : 0.0,
-                          );
-                        }),
-                    ],
-                  ),
+                          )
+                        else
+                          ..._activeQuests.map((quest) {
+                            final progress = quest['progress'] ?? 0.0;
+                            final progressValue =
+                                progress is int ? progress / 100.0 : progress;
+                            return _progressTile(
+                              quest['title'] ?? 'Quest',
+                              progressValue is double ? progressValue : 0.0,
+                            );
+                          }),
+                      ],
+                    ),
                   ),
         );
       },
@@ -476,11 +492,22 @@ class HomePageState extends State<HomePage> {
   }
 
   Widget _dailyGoalCard(DailyGoal goal) {
-    final metrics = <Widget?>[
-      _goalMetricRow('Minutes', goal.progressMinutes, goal.targetMinutes, unit: 'min'),
-      _goalMetricRow('Reps', goal.progressReps, goal.targetReps),
-      _goalMetricRow('Distance', goal.progressDistanceM, goal.targetDistanceM, unit: 'm'),
-    ].whereType<Widget>().toList();
+    final metrics =
+        <Widget?>[
+          _goalMetricRow(
+            'Minutes',
+            goal.progressMinutes,
+            goal.targetMinutes,
+            unit: 'min',
+          ),
+          _goalMetricRow('Reps', goal.progressReps, goal.targetReps),
+          _goalMetricRow(
+            'Distance',
+            goal.progressDistanceM,
+            goal.targetDistanceM,
+            unit: 'm',
+          ),
+        ].whereType<Widget>().toList();
 
     final children = <Widget>[
       Row(
@@ -505,10 +532,7 @@ class HomePageState extends State<HomePage> {
               color: Colors.white10,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              goal.statusLabel,
-              style: const TextStyle(fontSize: 12),
-            ),
+            child: Text(goal.statusLabel, style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -531,6 +555,27 @@ class HomePageState extends State<HomePage> {
       }
     }
 
+    // Add recompute button
+    children.add(const SizedBox(height: 12));
+    children.add(
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _isRecomputingDailyGoal
+              ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : ElevatedButton.icon(
+                onPressed: () => _recomputeDailyGoalFromExercises(goal),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Recompute from exercises'),
+              ),
+        ],
+      ),
+    );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -542,12 +587,52 @@ class HomePageState extends State<HomePage> {
     );
   }
 
+  Future<void> _recomputeDailyGoalFromExercises(DailyGoal goal) async {
+    if (_isRecomputingDailyGoal) return;
+    setState(() => _isRecomputingDailyGoal = true);
+    try {
+      final result = await DailyGoalService.recomputeFromExercises(
+        goalId: goal.id,
+        updateStatus: true,
+      );
+      // Refresh latest goal
+      await _loadDailyGoal();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Daily goal recomputed${result.isNotEmpty ? ': ${result.toString()}' : ''}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to recompute daily goal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRecomputingDailyGoal = false);
+    }
+  }
+
   Widget _monthlyGoalCard(MonthlyGoal goal) {
-    final metrics = <Widget?>[
-      _goalMetricRow('Minutes', goal.progressMinutes, goal.targetMinutes, unit: 'min'),
-      _goalMetricRow('Reps', goal.progressReps, goal.targetReps),
-      _goalMetricRow('Distance', goal.progressDistanceM, goal.targetDistanceM, unit: 'm'),
-    ].whereType<Widget>().toList();
+    final metrics =
+        <Widget?>[
+          _goalMetricRow(
+            'Minutes',
+            goal.progressMinutes,
+            goal.targetMinutes,
+            unit: 'min',
+          ),
+          _goalMetricRow('Reps', goal.progressReps, goal.targetReps),
+          _goalMetricRow(
+            'Distance',
+            goal.progressDistanceM,
+            goal.targetDistanceM,
+            unit: 'm',
+          ),
+        ].whereType<Widget>().toList();
 
     final children = <Widget>[
       Row(
@@ -572,10 +657,7 @@ class HomePageState extends State<HomePage> {
               color: Colors.white10,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              goal.statusLabel,
-              style: const TextStyle(fontSize: 12),
-            ),
+            child: Text(goal.statusLabel, style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),
@@ -609,7 +691,12 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget? _goalMetricRow(String label, int progress, int target, {String? unit}) {
+  Widget? _goalMetricRow(
+    String label,
+    int progress,
+    int target, {
+    String? unit,
+  }) {
     if (target <= 0) return null;
 
     final progressLabel = unit != null ? '$progress $unit' : '$progress';
@@ -624,10 +711,7 @@ class HomePageState extends State<HomePage> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
             Text(
               progressText,
               style: const TextStyle(fontSize: 12, color: Colors.white70),
