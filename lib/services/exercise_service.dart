@@ -579,4 +579,38 @@ class ExerciseService {
     }
     throw Exception('Failed to load leaderboard');
   }
+
+  // ==================== Developer Utilities ====================
+
+  /// Generate exercise types and/or sample exercises for users (developer tool).
+  ///
+  /// Endpoint: POST /api/generate-exercises
+  /// Payload example:
+  /// {
+  ///   "generateExerciseTypes": true,
+  ///   "exerciseTypeCount": 0,
+  ///   "exercisesPerUser": 0,
+  ///   "includeNotes": true
+  /// }
+  static Future<Map<String, dynamic>> generateExercises({
+    bool generateExerciseTypes = true,
+    int exerciseTypeCount = 0,
+    int exercisesPerUser = 0,
+    bool includeNotes = true,
+  }) async {
+    final uri = Uri.parse('$baseUrl/generate-exercises');
+    final payload = <String, dynamic>{
+      'generateExerciseTypes': generateExerciseTypes,
+      'exerciseTypeCount': exerciseTypeCount,
+      'exercisesPerUser': exercisesPerUser,
+      'includeNotes': includeNotes,
+    };
+
+    final response = await http.post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(payload),
+    );
+    return _handleResponse(response);
+  }
 }

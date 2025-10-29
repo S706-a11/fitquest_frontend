@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 import '../models/user.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
+import '../services/exercise_service.dart';
 import 'login_page.dart';
-import 'api_test_page.dart';
+import 'admin/quest_generator_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -114,13 +115,26 @@ class SettingsPage extends StatelessWidget {
                 onTap: () {},
               ),
               const Divider(height: 32),
+
               _Tile(
-                label: 'API Connection Test',
-                icon: Icons.developer_mode,
+                label: 'Quest Template Generator (Dev)',
+                icon: Icons.auto_awesome_outlined,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ApiTestPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const QuestGeneratorPage(),
+                    ),
+                  );
+                },
+              ),
+              _Tile(
+                label: 'Generate Exercises (Dev)',
+                icon: Icons.auto_fix_high_outlined,
+                onTap: () async {
+                  showDialog(
+                    context: context,
+                    builder: (_) => const _GenerateExercisesDialog(),
                   );
                 },
               ),
@@ -156,6 +170,140 @@ class SettingsPage extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _GenerateExercisesDialog extends StatefulWidget {
+  const _GenerateExercisesDialog();
+
+  @override
+  State<_GenerateExercisesDialog> createState() =>
+      _GenerateExercisesDialogState();
+}
+
+class _GenerateExercisesDialogState extends State<_GenerateExercisesDialog> {
+  bool _generateExerciseTypes = true;
+  bool _includeNotes = true;
+  final TextEditingController _exerciseTypeCountCtrl = TextEditingController(
+    text: '0',
+  );
+  final TextEditingController _exercisesPerUserCtrl = TextEditingController(
+    text: '0',
+  );
+  bool _submitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _exerciseTypeCountCtrl.dispose();
+    _exercisesPerUserCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+
+    final typeCount = int.tryParse(_exerciseTypeCountCtrl.text.trim()) ?? 0;
+    final perUser = int.tryParse(_exercisesPerUserCtrl.text.trim()) ?? 0;
+
+    try {
+      final res = await ExerciseService.generateExercises(
+        generateExerciseTypes: _generateExerciseTypes,
+        exerciseTypeCount: typeCount,
+        exercisesPerUser: perUser,
+        includeNotes: _includeNotes,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Generation complete: ${res.isEmpty ? 'OK' : 'OK (' + res.keys.join(', ') + ')'}',
+          ),
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = 'Failed: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Generate Exercises (Dev)'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _error!,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
+              ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Generate Exercise Types'),
+              value: _generateExerciseTypes,
+              onChanged: (v) => setState(() => _generateExerciseTypes = v),
+            ),
+            TextField(
+              controller: _exerciseTypeCountCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Exercise Type Count (0 = default)',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _exercisesPerUserCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Exercises Per User (0 = default)',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Include Notes'),
+              value: _includeNotes,
+              onChanged: (v) => setState(() => _includeNotes = v),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _submit,
+          child:
+              _submitting
+                  ? const SizedBox(
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Text('Generate'),
+        ),
+      ],
     );
   }
 }
