@@ -1,0 +1,82 @@
+FitQuest - User Interaction Guide
+
+This guide explains how a typical user navigates and interacts with the FitQuest app.
+
+1) Getting Started
+- Launch the app. If you don’t have an account, tap Register to create one (name, email, password). Otherwise, login with your email.
+- On first run you may see onboarding tips (when enabled) to introduce the main sections.
+
+2) Main Navigation
+The app uses a bottom navigation bar with five tabs:
+- Home: Overview of your profile, XP/level, goals, and active quests.
+- Quests: Browse, view, and manage your quests.
+- Tracker: Record workouts (time + distance in a single place).
+- Ranks: Leaderboards.
+- Settings: Profile, preferences, tools, and logout.
+
+3) Home
+- See your display name, level, and XP progress bar.
+- View Daily and Monthly goals (when available). Some builds include a button to recompute progress from your saved exercises.
+- See your active quests list; tap a quest to open its details.
+- Pull-to-refresh or revisit the tab to update data after a workout.
+
+4) Quests
+- Browse available and active quests.
+- Open a quest to view its requirements, progress, and rewards (XP).
+- Some quests may be activated/claimed; others are auto-tracked by your workouts.
+- In some builds, you can link specific exercises to a quest (Link Exercise to Quest page) for more granular progress.
+
+5) Tracker (Unified Time + Distance)
+- Choose the Tracker tab to start a new workout.
+- Running/Cycling: Shows a GPS map, distance, speed, and pace. The app will request location permission.
+- Swimming/General/Strength: Shows a timer-only flow (no GPS map).
+- Controls: START to begin, PAUSE/RESUME if needed, FINISH when done.
+- Finish behavior:
+  - Saves immediately (no confirmation dialog required).
+  - Resets the timer and shows a completion message (SnackBar).
+  - Applies your workout’s duration (and distance/calories if present) to all active quests automatically.
+  - Recomputes today’s Daily Goal and this month’s Monthly Goal from saved exercises (when configured).
+
+6) Exercise History (when available)
+- Open Exercise History from its page to see your past workouts.
+- Entries include type, duration, distance (if tracked), and other metrics.
+
+7) Leaderboards (Ranks)
+- View the global leaderboard.
+- Select the metric (duration, distance, calories) and period (daily, weekly, monthly, all-time) when available.
+- Some builds include filters by exercise type (e.g., running, cycling).
+
+8) Settings
+- Profile: Edit your display name, avatar URL, and optional stats (level, XP, streak, weight, height). Save updates and return to the app.
+- API Connection Test: Quick checks for backend connectivity.
+- Refresh User Data: Force a profile re-sync from the server.
+- Logout: End your session and return to the login screen.
+
+9) Developer Tools (in Settings)
+- Quest Template Generator (Dev): Generate a large library of quest templates by category and difficulty. Helpful for seeding content in development.
+- Generate Exercises (Dev): Seed default exercise types and/or create sample exercises.
+  - Typical preset to create exercise types only:
+    {
+      "generateExerciseTypes": true,
+      "exerciseTypeCount": 0,
+      "exercisesPerUser": 0,
+      "includeNotes": true
+    }
+  - The dialog includes guidance and a one-click preset.
+
+10) Permissions and Reliability
+- Location: Required for GPS-based workouts (running/cycling). If denied, the Tracker will display a helpful message and you can retry after enabling permissions.
+- Network Calls: If the backend endpoint for exercise sessions is not available (e.g., POST /exercises/sessions returns 404/405/501), the app gracefully falls back to creating a basic exercise using start/end timestamps based on your workout duration.
+
+11) Typical Daily Flow
+- Open the app → Tracker → START your workout.
+- Run/cycle (map mode) or do non-GPS exercises (timer mode).
+- FINISH → Workout is saved, quests and goals update, timer resets, and a SnackBar confirms completion.
+- Switch to Home to see updated goals and active quest progress, or check Ranks to see how you compare.
+
+12) Tips
+- For best accuracy with GPS, allow location access and keep your device outdoors with a clear view of the sky.
+- Use the Leaderboard filters to see performance by metric and time period.
+- If you’re testing on a phone, ensure your backend is reachable from your device (see README for phone setup and CORS details).
+
+That’s it! You’re ready to quest, train, and climb the ranks in FitQuest.
