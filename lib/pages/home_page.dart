@@ -6,6 +6,7 @@ import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 import '../services/daily_goal_service.dart';
 import '../services/monthly_goal_service.dart';
+import '../services/quest_service.dart';
 import '../widgets/xp_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -82,17 +83,8 @@ class HomePageState extends State<HomePage> {
     });
 
     try {
-      final userId = int.tryParse(user.id);
-      if (userId == null) {
-        setState(() {
-          _activeQuests = [];
-          _isLoadingQuests = false;
-        });
-        debugPrint('User ID is not numeric; skipping quest load');
-        return;
-      }
-
-      final quests = await ApiService.getActiveQuests(userId);
+      // Use QuestService which supports string user IDs
+      final quests = await QuestService.getActiveQuests(user.id);
       if (!mounted) return;
       setState(() {
         _activeQuests = quests;
