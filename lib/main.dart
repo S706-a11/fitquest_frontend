@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'theme.dart';
 import 'pages/home_page.dart';
 import 'pages/quests_page.dart';
-import 'pages/quest_tracker_page.dart';
+import 'pages/distance_tracker_page.dart';
 import 'pages/leaderboard_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/login_page.dart';
@@ -47,7 +47,9 @@ class _RootShellState extends State<RootShell> {
     _pages = [
       HomePage(key: _homePageKey),
       const QuestsPage(),
-      const QuestTrackerPage(),
+      // Use unified tracker (distance + time) via DistanceTrackerPage wrapper
+      // Default to a running workout to enable GPS + distance view out of the box.
+      const DistanceTrackerPage(exerciseTypeName: 'Running'),
       const LeaderboardPage(),
       const SettingsPage(),
     ];
