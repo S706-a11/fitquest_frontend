@@ -10,6 +10,7 @@ A gamified fitness tracking application built with Flutter, featuring quest-base
 - 🏆 **Leaderboards** - Compete with friends
 - 💪 **Exercise Library** - Comprehensive workout database
 - 👤 **User Profiles** - Track personal fitness journey
+- 🧭 **Unified Workout Tracker** - Time + Distance in one place (GPS map for running/cycling, timer-only for others), instant save with quest and goal updates
 
 ## 🚀 Quick Start
 
@@ -90,15 +91,23 @@ flutter run -d android
 - **Local Storage:** SharedPreferences
 - **Backend API:** ASP.NET Core (running separately)
 
-## 📚 Documentation
+## 📚 All‑in‑One Docs (Contents)
 
-- [**HOW_TO_RUN.md**](HOW_TO_RUN.md) - Quick start guide and launch options
-- [**PORT_CONFIGURATION.md**](PORT_CONFIGURATION.md) - Port 3000 setup details
-- [**API_INTEGRATION.md**](API_INTEGRATION.md) - Complete API documentation
-- [**QUICK_REFERENCE.md**](QUICK_REFERENCE.md) - Code examples and patterns
-- [**ARCHITECTURE.md**](ARCHITECTURE.md) - System architecture diagrams
-- [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) - Common issues and solutions
-- [**FIELD_MAPPING.md**](FIELD_MAPPING.md) - Backend field name reference
+This README consolidates all documentation. Jump to a section:
+
+1. [Quick Start](#-quick-start)
+2. [Running the App](#running-the-app)
+3. [Port 3000 Setup](#-port-3000-setup)
+4. [Configuration](#-configuration)
+5. [Architecture Overview](#-architecture-overview)
+6. [API Integration](#-api-integration)
+7. [Quest Template Generator](#-quest-template-generator)
+8. [Quick Reference (Snippets)](#-quick-reference-snippets)
+9. [Phone Setup (Run on Device)](#-phone-setup-run-on-device)
+10. [Troubleshooting](#-troubleshooting)
+11. [Project Structure](#-project-structure)
+12. [Contributing](#-contributing)
+13. [License](#-license)
 
 ## 🎯 Key Features Implementation
 
@@ -111,14 +120,17 @@ flutter run -d android
 - Settings and logout
 - API integration layer
 - State management with Provider
+- Unified workout tracker (time + distance)
+   - Map + GPS for running/cycling; timer-only for swimming/general/strength
+   - Finish saves immediately, shows a confirmation, and resets the tracker
+   - Applies session progress to all active quests automatically
+   - Recomputes Daily and Monthly Goals from exercises
+   - Robust session logging with fallback to create a basic exercise if the sessions endpoint is unavailable
+- Leaderboard functionality (configurable by metric/period/type)
 
 ### 🚧 To Be Implemented
 
 - Quest creation and management UI
-- Exercise tracking
-- Leaderboard functionality
-- Daily/Monthly goals
-- Quest exercises integration
 - Profile editing
 
 ## 🏗️ Project Structure
@@ -139,13 +151,52 @@ lib/
 │   ├── register_page.dart      # Registration screen
 │   ├── home_page.dart          # Dashboard
 │   ├── quests_page.dart        # Quest management
-│   ├── quest_tracker_page.dart # Active quest tracking
+│   ├── quest_tracker_page.dart # Unified tracker engine (time + distance + GPS)
+│   ├── distance_tracker_page.dart # Lightweight wrapper that routes to QuestTrackerPage
 │   ├── leaderboard_page.dart   # User rankings
 │   ├── settings_page.dart      # Settings & profile
 │   └── api_test_page.dart      # API debugging tool
 └── widgets/
     ├── xp_bar.dart             # XP progress bar
     └── quest_card.dart         # Quest display card
+```
+
+## 🧭 Tracker at a Glance
+
+- Where: Bottom Navigation → Tracker tab
+- Default: Running (shows map, distance, speed, pace, and elapsed time)
+- Other modes: Swimming/General/Strength show timer-only without GPS
+- Finish: Saves instantly, applies progress to all active quests, recomputes goals, resets the timer, and shows a success message
+- Reliability: If POST /exercises/sessions isn’t available, the app falls back to creating a basic exercise using start/end derived from duration
+
+## 🔌 Port 3000 Setup
+
+The app is configured to run the web build on port 3000.
+
+- VS Code: press F5 and choose “Flutter Web (Chrome - Port 3000)”.
+- Batch files: `run_web.bat` and `run_edge.bat` open http://localhost:3000.
+
+If port 3000 is in use (Windows PowerShell):
+
+```powershell
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+```
+
+Ensure your backend CORS allows http://localhost:3000:
+
+```csharp
+builder.Services.AddCors(options =>
+{
+   options.AddDefaultPolicy(policy =>
+   {
+      policy.WithOrigins("http://localhost:3000")
+           .AllowAnyHeader()
+           .AllowAnyMethod();
+   });
+});
+
+app.UseCors();
 ```
 
 ## 🔧 Configuration
@@ -164,6 +215,205 @@ static const String baseUrl = 'http://10.0.2.2:5105/api';
 // For Physical Device
 static const String baseUrl = 'http://YOUR_IP:5105/api';
 ```
+
+Backend listening on all interfaces (for device testing):
+
+```csharp
+// Program.cs
+builder.WebHost.UseUrls("http://0.0.0.0:5105");
+```
+
+Open Windows Firewall for port 5105 (Admin PowerShell):
+
+```powershell
+New-NetFirewallRule -DisplayName "FitQuest API" -Direction Inbound -LocalPort 5105 -Protocol TCP -Action Allow
+```
+
+## 🧱 Architecture Overview
+
+- Presentation: `pages/` widgets (Home, Quests, Tracker, Leaderboard, Settings, Login/Register)
+- State: `UserProvider` (Provider/ChangeNotifier) for user/session
+- Services: `services/` REST via `http` (Users, Quests, Exercises, Goals)
+- Models: JSON serialization in `models/`
+- Storage: SharedPreferences for lightweight session persistence
+
+Flow: View → Provider → Service (HTTP) → Provider → View.
+
+## 🌐 API Integration
+
+Core endpoints used:
+
+- Users: `GET/POST/PUT /api/users`, `GET /api/users/{id}`
+- Quests: `GET /api/users/{userId}/quests/active`, `GET /api/users/{userId}/quests/completed`, `POST /api/users/{userId}/quests`, `PATCH /api/users/{userId}/quests/{id}/toggle`
+- Exercises: `GET /api/exercises`, `POST /api/exercises/sessions` (preferred), `POST /api/exercises` (fallback), `GET /api/exercise-types`
+- Goals: `GET/POST /api/daily-goals`, `GET/POST /api/monthly-goals`, recompute endpoints
+- Leaderboard: `GET /api/exercises/leaderboard?metric=duration|distance|calories&period=...`
+
+Session logging is resilient: if `POST /exercises/sessions` returns 404/405/501, the app maps `exerciseType` → `exerciseTypeId` and creates a basic exercise with start/end derived from duration.
+
+## 🧪 Quest Template Generator
+
+### Overview
+
+The Quest Template Generator can create 200+ unique quest templates with difficulty scaling, level gating, and category variety.
+
+### How to Use
+
+1. Open the app → Settings tab
+2. Scroll to Developer Tools
+3. Tap Quest Template Generator
+
+Presets:
+
+- Generate All: full library across categories and difficulties
+- Beginner Only: Level 1–5 quests
+- High Level Only: Expert + Master templates
+- Strength & Cardio: focused mix of those categories
+
+Custom generation:
+
+- Number of Quests (1–1000)
+- Save to Database (persist) | Return Templates (preview)
+- Add Variance (add ±10–20% XP variety)
+- Filters: Categories and Difficulties
+
+### Categories
+
+- General, Strength, Cardio, Flexibility, Endurance, Consistency, WeightLoss, MuscleGain
+
+### Difficulties
+
+| Difficulty   | Level Range | XP Multiplier | Duration | Example                      |
+| ------------ | ----------- | ------------- | -------- | ---------------------------- |
+| Beginner     | 1–5         | 1x (50 XP)    | 7 days   | Complete 3 exercises         |
+| Intermediate | 6–15        | 2x (100 XP)   | 14 days  | Complete 10 exercises        |
+| Advanced     | 16–30       | 4x (200 XP)   | 21 days  | Complete 20 exercises        |
+| Expert       | 31–50       | 8x (400 XP)   | 30 days  | Complete 40 exercises        |
+| Master       | 51–100      | 15x (750 XP)  | 45 days  | Complete 60 exercises        |
+
+### Value Scaling Examples
+
+- Reps: 50 → 10,000 across tiers
+- Weight: 1,000kg → 250,000kg total lifted
+- Duration: 30 → 1,200 minutes
+
+### Common Use Cases
+
+Initial setup (full library):
+
+```
+Count: 1000
+Save to Database: ✓
+Add Variance: ✓
+Return Templates: ✗
+Categories: (all)
+Difficulties: (all)
+```
+
+Flexibility-only content:
+
+```
+Count: 50
+Save to Database: ✓
+Categories: Flexibility
+Difficulties: (all)
+```
+
+Preview without saving:
+
+```
+Count: 10
+Save to Database: ✗
+Return Templates: ✓
+Categories: Strength
+```
+
+### Response Fields
+
+- Generated: total templates created
+- Saved: persisted records
+- Duplicates: skipped titles
+- Message: info/error message
+
+### Pro Tips
+
+1. Use Generate All for first-time content
+2. Add Variance for variety; re-run for more
+3. Focus on 2–3 categories for targeted drops
+4. Balance by difficulty in separate runs
+5. Preview first, then enable Save
+
+### Pattern Examples
+
+Strength:
+
+- Complete {reps} total reps
+- Lift {weight}kg total weight
+- Do {sets} sets of strength exercises
+- Complete {count} strength sessions
+
+Cardio:
+
+- Run/cycle for {duration} minutes
+- Cover {distance}km distance
+- Complete {count} cardio sessions
+- Burn {calories} calories
+
+Consistency:
+
+- Exercise {streak} days in a row
+- Exercise {count} times this week
+- Don’t miss a workout for {streak} days
+
+### After Generation
+
+1. Go to Quests tab
+2. Tap +
+3. View templates filtered by your level
+4. Claim quests and start playing
+
+Backend: `POST /api/generate-quest-templates`
+
+Frontend: `QuestService.generateQuestTemplates()`; Admin UI in Settings → Developer Tools
+
+## ⚡ Quick Reference (Snippets)
+
+Get current user via Provider:
+
+```dart
+final userProvider = Provider.of<UserProvider>(context, listen: false);
+final user = userProvider.user;
+```
+
+Add XP (auto level-up handled in provider):
+
+```dart
+await userProvider.addXp(50);
+ScaffoldMessenger.of(context).showSnackBar(
+   const SnackBar(content: Text('+50 XP earned!')),
+);
+```
+
+Fetch active quests:
+
+```dart
+final quests = await ApiService.getActiveQuests(userProvider.user!.id);
+```
+
+Get exercise types:
+
+```dart
+final types = await ExerciseService.getExerciseTypes();
+```
+
+## 📱 Phone Setup (Run on Device)
+
+1. Find your PC IPv4 (e.g., 192.168.1.X). Scripts provided: `run_with_ip.ps1` (interactive) or `run_phone.ps1` (quick).
+2. Update base URLs in `api_service.dart`, `quest_service.dart`, `exercise_service.dart`, and `user_service.dart` (if present) to `http://YOUR_IP:5105/api`.
+3. Backend: use `UseUrls("http://0.0.0.0:5105")` and open firewall (see above).
+4. Verify from your phone: open `http://YOUR_IP:5105/swagger/index.html`.
+
+Android emulator: use `http://10.0.2.2:5105/api`.
 
 ### Port Configuration
 
@@ -226,7 +476,13 @@ taskkill /PID <PID> /F
 - Check Swagger UI: `http://localhost:5105/swagger/index.html`
 - For Android emulator, use `10.0.2.2` instead of `localhost`
 
-See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more details.
+### Email/name field mapping
+
+Backend expects `displayName`. The app sends `displayName` when creating/updating users (handled in `api_service.dart`).
+
+### GPS/Permissions
+
+If GPS tracking doesn’t start, ensure location permissions are granted. The tracker shows a friendly message with a retry button if permissions are missing.
 
 ## 📦 Dependencies
 
@@ -259,10 +515,7 @@ This project is for educational purposes.
 
 ## 🆘 Need Help?
 
-- Check [HOW_TO_RUN.md](HOW_TO_RUN.md) for setup instructions
-- See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues
-- Review [API_INTEGRATION.md](API_INTEGRATION.md) for API details
-- Use [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for code examples
+This README now contains all setup, configuration, API, and troubleshooting guidance in one place. If anything’s unclear, open an issue or a discussion in the repository.
 
 ## 🎉 Getting Started
 
