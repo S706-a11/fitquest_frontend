@@ -5,7 +5,12 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../services/location_service.dart';
 import '../services/exercise_service.dart';
+import '../services/daily_goal_service.dart';
+import '../services/monthly_goal_service.dart';
+import '../services/api_service.dart';
 import '../providers/user_provider.dart';
+import '../models/daily_goal.dart';
+import '../models/monthly_goal.dart';
 
 class QuestTrackerPage extends StatefulWidget {
   final String? titleOverride;
@@ -290,6 +295,12 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
         },
       );
 
+      // After saving, attempt to update today's daily goal progress
+      await _recomputeTodaysDailyGoalIfExists(userId);
+
+      // Also recompute this month's monthly goal progress (best-effort)
+      await _recomputeThisMonthsMonthlyGoalIfExists(userId);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -309,6 +320,86 @@ class _QuestTrackerPageState extends State<QuestTrackerPage> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _recomputeTodaysDailyGoalIfExists(String userId) async {
+    try {
+      final goalsResponse = await ApiService.getDailyGoals();
+      final goals =
+          goalsResponse
+              .whereType<Map<String, dynamic>>()
+              .map(DailyGoal.fromJson)
+              .where((g) => g.userId.isNotEmpty && g.userId == userId)
+              .toList();
+
+      // Find today's goal (by date only)
+      DailyGoal? todaysGoal;
+      final now = DateTime.now();
+      for (final g in goals) {
+        final d = g.dateYmd;
+        if (d != null &&
+            d.year == now.year &&
+            d.month == now.month &&
+            d.day == now.day) {
+          todaysGoal = g;
+          break;
+        }
+      }
+
+      if (todaysGoal == null) {
+        return; // No goal to update; skip silently
+      }
+
+      await DailyGoalService.recomputeFromExercises(
+        goalId: todaysGoal.id,
+        updateStatus: true,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Daily goal updated from today\'s workout'),
+          ),
+        );
+        // Notify Home that daily goal should refresh on next visit
+        try {
+          context.read<UserProvider>().markDailyGoalDirty();
+        } catch (_) {}
+      }
+    } catch (_) {
+      // Non-fatal: ignore failures to keep workout saving flow smooth
+    }
+  }
+
+  Future<void> _recomputeThisMonthsMonthlyGoalIfExists(String userId) async {
+    try {
+      final monthlyResponse = await ApiService.getMonthlyGoals();
+      final goals =
+          monthlyResponse
+              .whereType<Map<String, dynamic>>()
+              .map(MonthlyGoal.fromJson)
+              .where((g) => g.userId.isNotEmpty && g.userId == userId)
+              .toList();
+
+      // Find current month goal
+      final now = DateTime.now();
+      MonthlyGoal? current;
+      for (final g in goals) {
+        if (g.year == now.year && g.month == now.month) {
+          current = g;
+          break;
+        }
+      }
+      if (current == null) return;
+
+      await MonthlyGoalService.recomputeFromExercises(
+        goalId: current.id,
+        updateStatus: true,
+      );
+      // No snackbar to avoid noise; Home will show updated values on next refresh
+    } catch (_) {
+      // Ignore failures to keep workflow smooth
     }
   }
 

@@ -7,11 +7,13 @@ class UserProvider with ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _error;
+  bool _dailyGoalDirty = false;
 
   User? get user => _user;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLoggedIn => _user != null;
+  bool get dailyGoalDirty => _dailyGoalDirty;
 
   // Load user on app start
   Future<void> loadUser() async {
@@ -153,5 +155,16 @@ class UserProvider with ChangeNotifier {
   void clearUser() {
     _user = null;
     notifyListeners();
+  }
+
+  // Mark daily goal as needing refresh (e.g., after workout saved)
+  void markDailyGoalDirty() {
+    _dailyGoalDirty = true;
+    notifyListeners();
+  }
+
+  // Clear the daily goal refresh flag
+  void clearDailyGoalDirty() {
+    _dailyGoalDirty = false;
   }
 }

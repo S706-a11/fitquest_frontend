@@ -5,6 +5,7 @@ import '../models/monthly_goal.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 import '../services/daily_goal_service.dart';
+import '../services/monthly_goal_service.dart';
 import '../widgets/xp_bar.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,6 +26,7 @@ class HomePageState extends State<HomePage> {
   String? _monthlyGoalError;
   String? _loadedUserId;
   bool _isRecomputingDailyGoal = false;
+  bool _isRecomputingMonthlyGoal = false;
 
   @override
   void initState() {
@@ -45,6 +47,14 @@ class HomePageState extends State<HomePage> {
       _loadActiveQuests();
       _loadDailyGoal();
       _loadMonthlyGoal();
+    }
+
+    // If another page marked daily goal dirty, refresh it now
+    if (userProvider.dailyGoalDirty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await _loadDailyGoal();
+      });
+      userProvider.clearDailyGoalDirty();
     }
   }
 
@@ -680,6 +690,27 @@ class HomePageState extends State<HomePage> {
       }
     }
 
+    // Add recompute button for monthly goal
+    children.add(const SizedBox(height: 12));
+    children.add(
+      Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          _isRecomputingMonthlyGoal
+              ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+              : ElevatedButton.icon(
+                onPressed: () => _recomputeMonthlyGoalFromExercises(goal),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Recompute from exercises'),
+              ),
+        ],
+      ),
+    );
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -689,6 +720,35 @@ class HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _recomputeMonthlyGoalFromExercises(MonthlyGoal goal) async {
+    if (_isRecomputingMonthlyGoal) return;
+    setState(() => _isRecomputingMonthlyGoal = true);
+    try {
+      final result = await MonthlyGoalService.recomputeFromExercises(
+        goalId: goal.id,
+        updateStatus: true,
+      );
+      // Refresh monthly goal
+      await _loadMonthlyGoal();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Monthly goal recomputed${result.isNotEmpty ? ': ${result.toString()}' : ''}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to recompute monthly goal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRecomputingMonthlyGoal = false);
+    }
   }
 
   Widget? _goalMetricRow(
