@@ -91,6 +91,39 @@ class UserService {
     }
   }
 
+  // Get leaderboard
+  // Expected endpoint: GET /users/leaderboard or GET /leaderboard
+  // Returns a list of leaderboard entries (flexible shape)
+  // Fetch leaderboard
+  // metric: 'level'|'xp'|'streak'
+  // limit: number between 1 and 100
+  static Future<List<dynamic>> getLeaderboard({String metric = 'level', int limit = 50}) async {
+    final q = {
+      'metric': metric,
+      'limit': limit.toString(),
+    };
+
+    final urls = [
+      Uri.parse('$baseUrl/users/leaderboard').replace(queryParameters: q),
+      Uri.parse('$baseUrl/leaderboard').replace(queryParameters: q),
+    ];
+
+    for (final uri in urls) {
+      try {
+        final response = await http.get(uri);
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          if (body is List) return body;
+          if (body is Map && body['data'] is List) return body['data'] as List<dynamic>;
+        }
+      } catch (_) {
+        // ignore and try next
+      }
+    }
+
+    throw Exception('Failed to load leaderboard');
+  }
+
   //Update user profile
   static Future<User> updateUser({
     required String userId,
