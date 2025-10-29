@@ -282,153 +282,51 @@ Backend: `POST /api/generate-quest-templates`
 
 Frontend: `QuestService.generateQuestTemplates()`; Admin UI in Settings → Developer Tools
 
-## ⚡ Quick Reference (Snippets)
+## 🧩 Exercise/Exercise Type Generator
 
-Get current user via Provider:
+Use this developer tool to seed default exercise types and/or create sample exercises for users.
 
-```dart
-final userProvider = Provider.of<UserProvider>(context, listen: false);
-final user = userProvider.user;
+Where: Settings → Developer Tools → “Generate Exercises (Dev)”
+
+### Endpoint
+
+`POST /api/generate-exercises`
+
+### Example Payload
+
+```json
+{
+   "generateExerciseTypes": true,
+   "exerciseTypeCount": 0,
+   "exercisesPerUser": 0,
+   "includeNotes": true
+}
 ```
 
-Add XP (auto level-up handled in provider):
+Notes:
+
+- Set `generateExerciseTypes: true` and both counts to `0` to create a sensible default type catalog.
+- Increase `exerciseTypeCount` to create additional types; set `exercisesPerUser` to create sample sessions per user.
+- `includeNotes` adds descriptive notes to generated exercises for easier debugging.
+
+### UI Controls
+
+- Toggle “Generate Exercise Types” to include the type catalog.
+- Fields:
+   - Exercise Type Count (0 = default)
+   - Exercises Per User (0 = none)
+   - Include Notes (toggle)
+- Quick Action: “Generate Exercise Types Only” runs a preset with defaults.
+
+### Client Method
 
 ```dart
-await userProvider.addXp(50);
-ScaffoldMessenger.of(context).showSnackBar(
-   const SnackBar(content: Text('+50 XP earned!')),
+final res = await ExerciseService.generateExercises(
+   generateExerciseTypes: true,
+   exerciseTypeCount: 0,
+   exercisesPerUser: 0,
+   includeNotes: true,
 );
 ```
 
-Fetch active quests:
-
-```dart
-final quests = await ApiService.getActiveQuests(userProvider.user!.id);
-```
-
-Get exercise types:
-
-```dart
-final types = await ExerciseService.getExerciseTypes();
-```
-
-## 📱 Phone Setup (Run on Device)
-
-1. Find your PC IPv4 (e.g., 192.168.1.X). Scripts provided: `run_with_ip.ps1` (interactive) or `run_phone.ps1` (quick).
-2. Update base URLs in `api_service.dart`, `quest_service.dart`, `exercise_service.dart`, and `user_service.dart` (if present) to `http://YOUR_IP:5105/api`.
-3. Backend: use `UseUrls("http://0.0.0.0:5105")` and open firewall (see above).
-4. Verify from your phone: open `http://YOUR_IP:5105/swagger/index.html`.
-
-Android emulator: use `http://10.0.2.2:5105/api`.
-
-### Port Configuration
-
-The app is configured to always run on **port 3000** for web.
-
-- Configuration: `.vscode/settings.json`
-- Launch profiles: `.vscode/launch.json`
-
-## 🧪 Testing
-
-### API Connection Test
-
-1. Open app → Settings → "API Connection Test"
-2. Test individual endpoints
-3. Verify API responses
-
-### Manual Testing
-
-```bash
-# Run tests
-flutter test
-
-# Run with coverage
-flutter test --coverage
-```
-
-## 🐛 Troubleshooting
-
-### CORS Error
-
-**Solution:** Configure CORS in backend `Program.cs`:
-
-```csharp
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins("http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-app.UseCors();
-```
-
-### Port Already in Use
-
-```bash
-# Find process using port 3000
-netstat -ano | findstr :3000
-
-# Kill process
-taskkill /PID <PID> /F
-```
-
-### Backend Connection Failed
-
-- Ensure backend is running on port 5105
-- Check Swagger UI: `http://localhost:5105/swagger/index.html`
-- For Android emulator, use `10.0.2.2` instead of `localhost`
-
-### Email/name field mapping
-
-Backend expects `displayName`. The app sends `displayName` when creating/updating users (handled in `api_service.dart`).
-
-### GPS/Permissions
-
-If GPS tracking doesn’t start, ensure location permissions are granted. The tracker shows a friendly message with a retry button if permissions are missing.
-
-## 📦 Dependencies
-
-```yaml
-dependencies:
-  flutter: sdk: flutter
-  http: ^1.1.0              # HTTP client
-  shared_preferences: ^2.2.2 # Local storage
-  provider: ^6.1.1          # State management
-  cupertino_icons: ^1.0.8   # iOS icons
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is for educational purposes.
-
-## 👥 Team
-
-- **Repository:** [S706-a11/fitquest_frontend](https://github.com/S706-a11/fitquest_frontend)
-- **Branch:** got
-- **Default:** main
-
-## 🆘 Need Help?
-
-This README now contains all setup, configuration, API, and troubleshooting guidance in one place. If anything’s unclear, open an issue or a discussion in the repository.
-
-## 🎉 Getting Started
-
-1. **Install dependencies:** `flutter pub get`
-2. **Start backend:** Ensure API is running on port 5105
-3. **Run app:** Double-click `run_web.bat` or press F5 in VS Code
-4. **Create account:** Register a new user
-5. **Start questing:** Begin your fitness journey!
-
-Happy coding and stay fit! 🏋️‍♂️💪
+This returns a JSON summary (saved counts, duplicates, etc.).

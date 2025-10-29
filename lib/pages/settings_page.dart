@@ -248,6 +248,37 @@ class _GenerateExercisesDialogState extends State<_GenerateExercisesDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Guidance
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Guide: Generate Exercise Types',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Use this tool to seed default exercise types or create sample exercises for users. '
+                    'Turn ON "Generate Exercise Types" and set counts to 0 to create a sensible default set.',
+                  ),
+                  SizedBox(height: 8),
+                  Text('Example payload:'),
+                  SizedBox(height: 4),
+                  SelectableText(
+                    '{\n  "generateExerciseTypes": true,\n  "exerciseTypeCount": 0,\n  "exercisesPerUser": 0,\n  "includeNotes": true\n}',
+                    style: TextStyle(fontFamily: 'monospace', fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -259,6 +290,9 @@ class _GenerateExercisesDialogState extends State<_GenerateExercisesDialog> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Generate Exercise Types'),
+              subtitle: const Text(
+                'Creates default exercise type catalog when enabled',
+              ),
               value: _generateExerciseTypes,
               onChanged: (v) => setState(() => _generateExerciseTypes = v),
             ),
@@ -283,6 +317,27 @@ class _GenerateExercisesDialogState extends State<_GenerateExercisesDialog> {
               title: const Text('Include Notes'),
               value: _includeNotes,
               onChanged: (v) => setState(() => _includeNotes = v),
+            ),
+            const SizedBox(height: 8),
+            // Preset quick action
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed:
+                    _submitting
+                        ? null
+                        : () {
+                          setState(() {
+                            _generateExerciseTypes = true;
+                            _exerciseTypeCountCtrl.text = '0';
+                            _exercisesPerUserCtrl.text = '0';
+                            _includeNotes = true;
+                          });
+                          _submit();
+                        },
+                icon: const Icon(Icons.library_add_outlined),
+                label: const Text('Generate Exercise Types Only'),
+              ),
             ),
           ],
         ),
