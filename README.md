@@ -121,53 +121,12 @@ This README consolidates all documentation. Jump to a section:
 - API integration layer
 - State management with Provider
 - Unified workout tracker (time + distance)
-   - Map + GPS for running/cycling; timer-only for swimming/general/strength
-   - Finish saves immediately, shows a confirmation, and resets the tracker
-   - Applies session progress to all active quests automatically
-   - Recomputes Daily and Monthly Goals from exercises
-   - Robust session logging with fallback to create a basic exercise if the sessions endpoint is unavailable
+  - Map + GPS for running/cycling; timer-only for swimming/general/strength
+  - Finish saves immediately, shows a confirmation, and resets the tracker
+  - Applies session progress to all active quests automatically
+  - Recomputes Daily and Monthly Goals from exercises
+  - Robust session logging with fallback to create a basic exercise if the sessions endpoint is unavailable
 - Leaderboard functionality (configurable by metric/period/type)
-
-### 🚧 To Be Implemented
-
-- Quest creation and management UI
-- Profile editing
-
-## 🏗️ Project Structure
-
-```
-lib/
-├── main.dart                    # App entry point
-├── theme.dart                   # App theming
-├── models/
-│   └── user.dart               # User data model
-├── services/
-│   ├── api_service.dart        # REST API client
-│   └── auth_service.dart       # Authentication logic
-├── providers/
-│   └── user_provider.dart      # State management
-├── pages/
-│   ├── login_page.dart         # Login screen
-│   ├── register_page.dart      # Registration screen
-│   ├── home_page.dart          # Dashboard
-│   ├── quests_page.dart        # Quest management
-│   ├── quest_tracker_page.dart # Unified tracker engine (time + distance + GPS)
-│   ├── distance_tracker_page.dart # Lightweight wrapper that routes to QuestTrackerPage
-│   ├── leaderboard_page.dart   # User rankings
-│   ├── settings_page.dart      # Settings & profile
-│   └── api_test_page.dart      # API debugging tool
-└── widgets/
-    ├── xp_bar.dart             # XP progress bar
-    └── quest_card.dart         # Quest display card
-```
-
-## 🧭 Tracker at a Glance
-
-- Where: Bottom Navigation → Tracker tab
-- Default: Running (shows map, distance, speed, pace, and elapsed time)
-- Other modes: Swimming/General/Strength show timer-only without GPS
-- Finish: Saves instantly, applies progress to all active quests, recomputes goals, resets the timer, and shows a success message
-- Reliability: If POST /exercises/sessions isn’t available, the app falls back to creating a basic exercise using start/end derived from duration
 
 ## 🔌 Port 3000 Setup
 
@@ -198,59 +157,6 @@ builder.Services.AddCors(options =>
 
 app.UseCors();
 ```
-
-## 🔧 Configuration
-
-### API Endpoint
-
-Located in `lib/services/api_service.dart`:
-
-```dart
-// For Web/iOS Simulator/Desktop
-static const String baseUrl = 'http://localhost:5105/api';
-
-// For Android Emulator
-static const String baseUrl = 'http://10.0.2.2:5105/api';
-
-// For Physical Device
-static const String baseUrl = 'http://YOUR_IP:5105/api';
-```
-
-Backend listening on all interfaces (for device testing):
-
-```csharp
-// Program.cs
-builder.WebHost.UseUrls("http://0.0.0.0:5105");
-```
-
-Open Windows Firewall for port 5105 (Admin PowerShell):
-
-```powershell
-New-NetFirewallRule -DisplayName "FitQuest API" -Direction Inbound -LocalPort 5105 -Protocol TCP -Action Allow
-```
-
-## 🧱 Architecture Overview
-
-- Presentation: `pages/` widgets (Home, Quests, Tracker, Leaderboard, Settings, Login/Register)
-- State: `UserProvider` (Provider/ChangeNotifier) for user/session
-- Services: `services/` REST via `http` (Users, Quests, Exercises, Goals)
-- Models: JSON serialization in `models/`
-- Storage: SharedPreferences for lightweight session persistence
-
-Flow: View → Provider → Service (HTTP) → Provider → View.
-
-## 🌐 API Integration
-
-Core endpoints used:
-
-- Users: `GET/POST/PUT /api/users`, `GET /api/users/{id}`
-- Quests: `GET /api/users/{userId}/quests/active`, `GET /api/users/{userId}/quests/completed`, `POST /api/users/{userId}/quests`, `PATCH /api/users/{userId}/quests/{id}/toggle`
-- Exercises: `GET /api/exercises`, `POST /api/exercises/sessions` (preferred), `POST /api/exercises` (fallback), `GET /api/exercise-types`
-- Goals: `GET/POST /api/daily-goals`, `GET/POST /api/monthly-goals`, recompute endpoints
-- Leaderboard: `GET /api/exercises/leaderboard?metric=duration|distance|calories&period=...`
-
-Session logging is resilient: if `POST /exercises/sessions` returns 404/405/501, the app maps `exerciseType` → `exerciseTypeId` and creates a basic exercise with start/end derived from duration.
-
 ## 🧪 Quest Template Generator
 
 ### Overview
@@ -283,13 +189,13 @@ Custom generation:
 
 ### Difficulties
 
-| Difficulty   | Level Range | XP Multiplier | Duration | Example                      |
-| ------------ | ----------- | ------------- | -------- | ---------------------------- |
-| Beginner     | 1–5         | 1x (50 XP)    | 7 days   | Complete 3 exercises         |
-| Intermediate | 6–15        | 2x (100 XP)   | 14 days  | Complete 10 exercises        |
-| Advanced     | 16–30       | 4x (200 XP)   | 21 days  | Complete 20 exercises        |
-| Expert       | 31–50       | 8x (400 XP)   | 30 days  | Complete 40 exercises        |
-| Master       | 51–100      | 15x (750 XP)  | 45 days  | Complete 60 exercises        |
+| Difficulty   | Level Range | XP Multiplier | Duration | Example               |
+| ------------ | ----------- | ------------- | -------- | --------------------- |
+| Beginner     | 1–5         | 1x (50 XP)    | 7 days   | Complete 3 exercises  |
+| Intermediate | 6–15        | 2x (100 XP)   | 14 days  | Complete 10 exercises |
+| Advanced     | 16–30       | 4x (200 XP)   | 21 days  | Complete 20 exercises |
+| Expert       | 31–50       | 8x (400 XP)   | 30 days  | Complete 40 exercises |
+| Master       | 51–100      | 15x (750 XP)  | 45 days  | Complete 60 exercises |
 
 ### Value Scaling Examples
 
